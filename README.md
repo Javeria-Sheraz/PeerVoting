@@ -38,7 +38,17 @@ The application is a full-stack web app built with **Next.js (App Router)** on t
 
 The codebase follows a modern Next.js App Router structure, separating server-side routing, UI components, and database logic.
 
-```text
+📦 Root Directory
+ ┣ 📂 src                 # All application source code (see detailed breakdown below)
+ ┣ 📜 .env.local          # Environment variables (Supabase URL, Anon Key, etc.)
+ ┣ 📜 drizzle.config.json # Configuration for Drizzle ORM (database schema/migrations)
+ ┣ 📜 eslint.config.mjs   # ESLint configuration for code linting and formatting rules
+ ┣ 📜 next.config.ts      # Next.js framework configuration and routing options
+ ┣ 📜 package.json        # Project dependencies, metadata, and npm run scripts
+ ┣ 📜 postcss.config.mjs  # PostCSS configuration (required for Tailwind CSS processing)
+ ┣ 📜 SUPABASE_SETUP.md   # Documentation and SQL scripts for setting up the Supabase backend
+ ┗ 📜 tsconfig.json       # TypeScript compiler configuration
+
 📦 src
  ┣ 📂 app
  ┃ ┣ 📂 api               # API routes (e.g., health checks)
@@ -65,5 +75,3 @@ The codebase follows a modern Next.js App Router structure, separating server-si
  ┃ ┣ 📜 pollService.ts    # Centralized Supabase data fetching functions
  ┃ ┣ 📜 types.ts          # TypeScript interfaces (Poll, Profile, etc.)
  ┃ ┗ 📜 constants.ts      # Global app configurations
-
-```
