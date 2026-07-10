@@ -1,4 +1,4 @@
-Anonymous Cohort Polling Platform
+# 📊 Anonymous Cohort Polling Platform
 
 ## 1. What the Project Is
 
