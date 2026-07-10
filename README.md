@@ -38,6 +38,7 @@ The application is a full-stack web app built with **Next.js (App Router)** on t
 
 The codebase follows a modern Next.js App Router structure, separating server-side routing, UI components, and database logic.
 
+```text
 📦 Root Directory
  ┣ 📂 src                 # All application source code (see detailed breakdown below)
  ┣ 📜 .env.local          # Environment variables (Supabase URL, Anon Key, etc.)
@@ -75,3 +76,5 @@ The codebase follows a modern Next.js App Router structure, separating server-si
  ┃ ┣ 📜 pollService.ts    # Centralized Supabase data fetching functions
  ┃ ┣ 📜 types.ts          # TypeScript interfaces (Poll, Profile, etc.)
  ┃ ┗ 📜 constants.ts      # Global app configurations
+
+```
