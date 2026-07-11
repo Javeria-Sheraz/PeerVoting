@@ -1,5 +1,5 @@
 # 📊 Anonymous Cohort Polling Platform
-
+just checking
 ## 1. Project Overview
 
 This project is a real-time, anonymous polling application designed specifically for university cohorts. Built with a Next.js (App Router) frontend and a Supabase (PostgreSQL) backend, the platform eliminates the need for manual moderation or expensive server-side timers by relying on database-level automation, Row Level Security (RLS), and time-based queries.
