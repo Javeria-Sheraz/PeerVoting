@@ -1,50 +1,84 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import type { Poll, PollAnswerArchive } from "@/lib/types";
 
 type ArchiveRow = PollAnswerArchive & { poll?: Poll };
 
+// Configure how many polls load per page
+const PAGE_SIZE = 10; 
+
 export default function ArchivePage() {
   const [rows, setRows] = useState<ArchiveRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  
+  // Pagination State
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
 
-  useEffect(() => {
-    async function load() {
-      const supabase = getSupabaseClient();
-      if (!supabase) return;
-      setLoading(true);
-      setError(null);
-      try {
-        // Attempt an embedded join first (requires FK poll_answers_archive.poll_id -> polls.id).
-        const { data, error: joinError } = await supabase
-          .from("poll_answers_archive")
-          .select("*, poll:polls(*)")
-          .order("id", { ascending: false });
+  const loadArchiveChunk = useCallback(async (pageIndex: number) => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
 
-        if (joinError) throw joinError;
+    if (pageIndex === 0) setLoading(true);
+    else setLoadingMore(true);
+    
+    setError(null);
 
-        let archiveRows = (data ?? []) as ArchiveRow[];
+    try {
+      // Calculate Supabase range indices
+      const from = pageIndex * PAGE_SIZE;
+      const to = from + PAGE_SIZE - 1;
 
-        // Fallback: manually stitch in poll questions if the embed didn't resolve.
-        if (archiveRows.some((r) => !r.poll)) {
-          const pollIds = [...new Set(archiveRows.map((r) => r.poll_id))];
-          const { data: polls } = await supabase.from("polls").select("*").in("id", pollIds);
-          const pollMap = new Map((polls ?? []).map((p: Poll) => [p.id, p]));
-          archiveRows = archiveRows.map((r) => ({ ...r, poll: r.poll ?? pollMap.get(r.poll_id) }));
-        }
+      const { data, error: joinError } = await supabase
+        .from("poll_answers_archive")
+        .select("*, poll:polls(*)")
+        .order("id", { ascending: false })
+        .range(from, to); // Fetch exactly PAGE_SIZE records
 
-        setRows(archiveRows);
-      } catch {
-        setError("Failed to load the archive. Please check your Supabase configuration.");
-      } finally {
-        setLoading(false);
+      if (joinError) throw joinError;
+
+      let archiveRows = (data ?? []) as ArchiveRow[];
+
+      // If we received fewer rows than the PAGE_SIZE, we've hit the end of the DB
+      if (archiveRows.length < PAGE_SIZE) {
+        setHasMore(false);
+      } else {
+        setHasMore(true);
       }
+
+      // Fallback: manually stitch in poll questions if the embed didn't resolve.
+      if (archiveRows.length > 0 && archiveRows.some((r) => !r.poll)) {
+        const pollIds = [...new Set(archiveRows.map((r) => r.poll_id))];
+        const { data: polls } = await supabase.from("polls").select("*").in("id", pollIds);
+        const pollMap = new Map((polls ?? []).map((p: Poll) => [p.id, p]));
+        archiveRows = archiveRows.map((r) => ({ ...r, poll: r.poll ?? pollMap.get(r.poll_id) }));
+      }
+
+      // Append new rows to existing ones, or set fresh if on page 0
+      setRows((prev) => (pageIndex === 0 ? archiveRows : [...prev, ...archiveRows]));
+    } catch {
+      setError("Failed to load the archive. Please check your Supabase configuration.");
+    } finally {
+      setLoading(false);
+      setLoadingMore(false);
     }
-    load();
   }, []);
+
+  // Initial load
+  useEffect(() => {
+    loadArchiveChunk(0);
+  }, [loadArchiveChunk]);
+
+  // Triggered by the "Load More" button
+  const handleLoadMore = () => {
+    const nextPage = page + 1;
+    setPage(nextPage);
+    loadArchiveChunk(nextPage);
+  };
 
   return (
     <div>
@@ -105,6 +139,26 @@ export default function ArchivePage() {
               </div>
             </div>
           ))}
+
+          {/* Load More Section */}
+          {hasMore && (
+            <div className="pt-4 pb-8 flex justify-center">
+              <button
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="rounded-lg bg-[#2e2e2e] px-4 py-2 text-sm font-medium text-[#e4e4e7] transition-colors hover:bg-[#3f3f46] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingMore ? "Loading..." : "Load More"}
+              </button>
+            </div>
+          )}
+          
+          {/* End of list indicator */}
+          {!hasMore && rows.length > 0 && (
+            <p className="pt-4 pb-8 text-center text-xs text-[#71717a]">
+              You have reached the end of the archive.
+            </p>
+          )}
         </div>
       )}
     </div>
