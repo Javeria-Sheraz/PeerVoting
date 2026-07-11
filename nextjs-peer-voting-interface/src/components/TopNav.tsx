@@ -25,9 +25,9 @@ export default function TopNav() {
           <div className="flex items-center gap-3">
           <Image
             src="/logo.png"
-            alt="PeerVote Logo"
-            width={56}
-            height={56}
+            alt="Logo"
+            width={90}
+            height={90}
             className="rounded-lg"
           />
           <span className="hidden text-sm font-semibold tracking-tight text-[#f5f5f5] sm:block">PeerVote</span>
