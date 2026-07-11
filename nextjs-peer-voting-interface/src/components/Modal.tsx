@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { createPortal } from "react-dom";
 
 export default function Modal({
   title,
@@ -13,9 +14,11 @@ export default function Modal({
   children: ReactNode;
   widthClass?: string;
 }) {
-  return (
+  if (typeof document === "undefined") return null;
+
+  return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className={`fade-in card-surface w-full ${widthClass} max-h-[90dvh] overflow-y-auto rounded-2xl p-6 shadow-2xl`}>
+      <div className={`fade-in card-surface w-full ${widthClass} max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl p-6 shadow-2xl`}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[#f5f5f5]">{title}</h2>
           {onClose && (
@@ -30,6 +33,7 @@ export default function Modal({
         </div>
         {children}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -193,7 +193,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
 
       const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
-      return { error: updateError?.message ?? null };
+      if (updateError) {
+        return { error: updateError.message };
+      }
+
+      await supabase.auth.signOut({ scope: "global" });
+      return { error: null };
     },
     [session]
   );
