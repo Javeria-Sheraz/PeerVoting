@@ -49,7 +49,7 @@ export default function ResetPasswordModal({ onClose }: { onClose: () => void })
   }
 
   return (
-    <Modal title="Reset Password" onClose={onClose}>
+    <Modal title="Change Password" onClose={busy ? undefined : onClose}>
       <div className="space-y-4">
         <div>
           <label className="mb-1.5 block text-xs font-medium text-[#a1a1aa]">Email</label>
