@@ -34,19 +34,21 @@ export default function ResetPasswordModal({ onClose }: { onClose: () => void })
     }
 
     setBusy(true);
-    const { error: changeError } = await changePassword(email, currentPassword, newPassword);
-    setBusy(false);
+    try {
+      const { error: changeError } = await changePassword(email, currentPassword, newPassword);
 
-    if (changeError) {
-      setError(changeError);
-      return;
+      if (changeError) {
+        setError(changeError);
+        return;
+      }
+
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setSuccess("Password updated successfully.");
+    } finally {
+      setBusy(false);
     }
-
-    setCurrentPassword("");
-    setNewPassword("");
-    setConfirmNewPassword("");
-    setSuccess("Password updated successfully.");
-  }
 
   return (
     <Modal title="Change Password" onClose={busy ? undefined : onClose}>
