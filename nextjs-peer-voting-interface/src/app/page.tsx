@@ -74,9 +74,9 @@ export default function AuthPage() {
         <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl">
             <Image
               src="/logo.png"
-              alt="PeerVote Logo"
-              width={48}
-              height={48}
+              alt="Logo"
+              width={80}
+              height={80}
               priority
               className="rounded-2xl"
             />
