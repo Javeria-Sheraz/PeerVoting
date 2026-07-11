@@ -10,7 +10,13 @@ import {
   type ReactNode,
 } from "react";
 import type { Session } from "@supabase/supabase-js";
-import { getSupabaseClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { createClient } from "@supabase/supabase-js";
+import {
+  getSupabaseClient,
+  isSupabaseConfigured,
+  supabaseAnonKey,
+  supabaseUrl,
+} from "@/lib/supabase/client";
 import { extractRollNumber, isValidStudentEmail } from "@/lib/constants";
 import type { Profile } from "@/lib/types";
 
@@ -183,7 +189,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: "New password must be different from your current password." };
       }
 
-      const { error: reauthError } = await supabase.auth.signInWithPassword({
+      if (!supabaseUrl || !supabaseAnonKey) {
+        return { error: "Supabase is not configured." };
+      }
+
+      const verifier = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      });
+
+      const { error: reauthError } = await verifier.auth.signInWithPassword({
         email: normalizedEmail,
         password: currentPassword,
       });
