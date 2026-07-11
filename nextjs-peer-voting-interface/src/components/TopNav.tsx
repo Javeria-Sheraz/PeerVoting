@@ -81,7 +81,7 @@ export default function TopNav() {
                 }}
                 className="w-full rounded-lg px-2 py-1.5 text-left text-sm text-[#d4d4d8] hover:bg-[#2a2a2a]"
               >
-                Reset Password
+                Change Password
               </button>
               <button
                 onClick={() => signOut()}
