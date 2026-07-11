@@ -47,7 +47,10 @@ export default function AdminPage() {
 
   useEffect(() => {
     if (profile?.is_admin) {
-      loadData();
+      const id = setTimeout(() => {
+        void loadData();
+      }, 0);
+      return () => clearTimeout(id);
     }
   }, [profile, loadData]);
 
@@ -62,7 +65,7 @@ export default function AdminPage() {
     const supabase = getSupabaseClient();
     if (!supabase) return { error: "Not connected." };
     const result = await addWhitelistEntry(supabase, rollNumber);
-    if (!result.error) loadData();
+    if (!result.error) void loadData();
     return result;
   }
 

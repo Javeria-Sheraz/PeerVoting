@@ -23,6 +23,11 @@ interface AuthState {
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signUp: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
+  changePassword: (
+    email: string,
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<{ error: string | null }>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -31,7 +36,7 @@ const AuthContext = createContext<AuthState | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(isSupabaseConfigured);
   const [isExcluded, setIsExcluded] = useState(false);
 
   const loadProfileAndWhitelist = useCallback(async (userId: string, email: string) => {
@@ -80,10 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const supabase = getSupabaseClient();
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
+    if (!supabase) return;
 
     let isMounted = true;
 
@@ -160,6 +162,42 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsExcluded(false);
   }, []);
 
+  const changePassword = useCallback(
+    async (email: string, currentPassword: string, newPassword: string) => {
+      const supabase = getSupabaseClient();
+      if (!supabase) return { error: "Supabase is not configured." };
+      if (!session?.user) return { error: "You need to be logged in to change your password." };
+
+      const normalizedEmail = email.trim().toLowerCase();
+      const sessionEmail = (session.user.email ?? "").trim().toLowerCase();
+
+      if (!normalizedEmail || !currentPassword || !newPassword) {
+        return { error: "Email, current password, and new password are required." };
+      }
+
+      if (normalizedEmail !== sessionEmail) {
+        return { error: "Email must match your currently signed-in account." };
+      }
+
+      if (currentPassword === newPassword) {
+        return { error: "New password must be different from your current password." };
+      }
+
+      const { error: reauthError } = await supabase.auth.signInWithPassword({
+        email: normalizedEmail,
+        password: currentPassword,
+      });
+
+      if (reauthError) {
+        return { error: "Current password is incorrect." };
+      }
+
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+      return { error: updateError?.message ?? null };
+    },
+    [session]
+  );
+
   const value = useMemo<AuthState>(
     () => ({
       session,
@@ -170,9 +208,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn,
       signUp,
       signOut,
+      changePassword,
       refreshProfile,
     }),
-    [session, profile, loading, isExcluded, signIn, signUp, signOut, refreshProfile]
+    [session, profile, loading, isExcluded, signIn, signUp, signOut, changePassword, refreshProfile]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

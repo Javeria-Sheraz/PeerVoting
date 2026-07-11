@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
+import ResetPasswordModal from "@/components/ResetPasswordModal";
 
 const BASE_TABS = [
   { href: "/dashboard/active", label: "Active Polls" },
@@ -16,6 +17,7 @@ export default function TopNav() {
   const pathname = usePathname();
   const { profile, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
 
   const tabs = profile?.is_admin ? [...BASE_TABS, { href: "/dashboard/admin", label: "Admin Panel" }] : BASE_TABS;
 
@@ -73,6 +75,15 @@ export default function TopNav() {
                 </div>
               )}
               <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  setShowResetModal(true);
+                }}
+                className="w-full rounded-lg px-2 py-1.5 text-left text-sm text-[#d4d4d8] hover:bg-[#2a2a2a]"
+              >
+                Reset Password
+              </button>
+              <button
                 onClick={() => signOut()}
                 className="w-full rounded-lg px-2 py-1.5 text-left text-sm text-[#f87171] hover:bg-[#2a1a1a]"
               >
@@ -82,6 +93,7 @@ export default function TopNav() {
           )}
         </div>
       </div>
+      {showResetModal && <ResetPasswordModal onClose={() => setShowResetModal(false)} />}
     </header>
   );
 }

@@ -50,7 +50,10 @@ export default function ActivePollsPage() {
   }, [profile]);
 
   useEffect(() => {
-    loadData();
+    const id = setTimeout(() => {
+      void loadData();
+    }, 0);
+    return () => clearTimeout(id);
   }, [loadData]);
 
   async function handleVote(pollId: string, roll: string) {
@@ -75,7 +78,7 @@ export default function ActivePollsPage() {
     if (!supabase) return;
     await closePollAdmin(supabase, pollId);
     // Refresh the feed so the poll immediately disappears from Active
-    loadData(); 
+    void loadData();
   }
 
   async function handleUpdateExpiration(pollId: string, isoDate: string) {
@@ -93,7 +96,7 @@ export default function ActivePollsPage() {
     setCreating(false);
     if (!createError) {
       setShowCreate(false);
-      loadData();
+      void loadData();
     } else {
       setError(createError);
     }
