@@ -34,10 +34,7 @@ export default function ClosedPollsPage() {
   }, []);
 
   useEffect(() => {
-    const id = setTimeout(() => {
-      void loadData();
-    }, 0);
-    return () => clearTimeout(id);
+    void loadData();
   }, [loadData]);
 
   async function handleLoadResults(pollId: string) {
