@@ -102,8 +102,10 @@ export default function ResetPasswordModal({ onClose }: { onClose: () => void })
 
         <div className="flex justify-end gap-2">
           <button
+            type="button"
             onClick={onClose}
-            className="rounded-lg border border-[#2e2e2e] px-4 py-2 text-sm font-medium text-[#d4d4d8] hover:bg-[#242424]"
+            disabled={busy}
+            className="rounded-lg border border-[#2e2e2e] px-4 py-2 text-sm font-medium text-[#d4d4d8] hover:bg-[#242424] disabled:opacity-50"
           >
             Cancel
           </button>
