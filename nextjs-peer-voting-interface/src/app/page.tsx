@@ -71,12 +71,12 @@ export default function AuthPage() {
     <main className="flex min-h-screen items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center">
-        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl">
+          <div className="mb-4">
             <Image
               src="/logo.png"
-              alt="Logo "
-              width={80}
-              height={80}
+              alt="PeerVote Logo"
+              width={100}
+              height={100}
               priority
               className="rounded-2xl"
             />
