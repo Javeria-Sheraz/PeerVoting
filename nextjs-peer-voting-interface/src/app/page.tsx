@@ -75,8 +75,8 @@ export default function AuthPage() {
             <Image
               src="/logo.png"
               alt="PeerVote Logo"
-              width={100}
-              height={100}
+              width={170}
+              height={170}
               priority
               className="rounded-2xl"
             />
