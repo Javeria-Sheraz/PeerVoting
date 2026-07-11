@@ -14,8 +14,8 @@ export default function Modal({
   widthClass?: string;
 }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
-      <div className={`fade-in card-surface w-full ${widthClass} rounded-2xl p-6 shadow-2xl`}>
+    <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/70 p-4 pt-[max(1rem,env(safe-area-inset-top))] backdrop-blur-sm sm:items-center sm:pt-4">
+      <div className={`fade-in card-surface w-full max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl p-6 shadow-2xl ${widthClass}`}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-[#f5f5f5]">{title}</h2>
           {onClose && (
