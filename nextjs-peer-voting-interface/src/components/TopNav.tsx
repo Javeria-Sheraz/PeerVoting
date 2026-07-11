@@ -26,8 +26,8 @@ export default function TopNav() {
           <Image
             src="/logo.png"
             alt="PeerVote Logo"
-            width={32}
-            height={32}
+            width={48}
+            height={48}
             className="rounded-lg"
           />
           <span className="hidden text-sm font-semibold tracking-tight text-[#f5f5f5] sm:block">PeerVote</span>
