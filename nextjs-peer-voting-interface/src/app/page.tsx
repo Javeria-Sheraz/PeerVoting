@@ -74,7 +74,8 @@ export default function AuthPage() {
             PV
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-[#f5f5f5]">PeerVote</h1>
-          <p className="mt-1 text-sm text-[#a1a1aa]">Anonymous peer-voting for 2024mc</p>
+          <p className="mt-1 text-sm text-[#a1a1aa]">Anonymous peer-voting for Mecha 24A</p>
+          <p className="mt-1 text-sm text-[#a1a1aa]">Launched by Stalkers!</p>
         </div>
 
         {!isConfigured && (
@@ -121,7 +122,7 @@ export default function AuthPage() {
                 required
                 value={email}
                 onChange={(e) => handleEmailChange(e.target.value)}
-                placeholder="2024mc7@student.uet.edu.pk"
+                placeholder="2024mcX@student.uet.edu.pk"
                 className={`w-full rounded-lg border bg-[#161616] px-3 py-2.5 text-sm text-[#f5f5f5] placeholder:text-[#52525b] outline-none focus:border-[#4f46e5] ${
                   emailError ? "border-[#ef4444]" : "border-[#2e2e2e]"
                 }`}
