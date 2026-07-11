@@ -34,7 +34,7 @@ export default function ClosedPollsPage() {
   }, []);
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, [loadData]);
 
   async function handleLoadResults(pollId: string) {
