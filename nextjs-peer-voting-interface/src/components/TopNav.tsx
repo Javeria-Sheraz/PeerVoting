@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -21,10 +22,14 @@ export default function TopNav() {
   return (
     <header className="sticky top-0 z-40 border-b border-[#2e2e2e] bg-[#121212]/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#4f46e5] text-sm font-bold text-white">
-            PV
-          </div>
+      <div className="flex items-center gap-2">
+          <Image
+            src="/logo.png"
+            alt="PeerVote Logo"
+            width={32}
+            height={32}
+            className="rounded-lg"
+          />
           <span className="hidden text-sm font-semibold tracking-tight text-[#f5f5f5] sm:block">PeerVote</span>
         </div>
 
