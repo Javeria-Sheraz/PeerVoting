@@ -49,6 +49,7 @@ export default function ResetPasswordModal({ onClose }: { onClose: () => void })
     } finally {
       setBusy(false);
     }
+  }
 
   return (
     <Modal title="Change Password" onClose={busy ? undefined : onClose}>
