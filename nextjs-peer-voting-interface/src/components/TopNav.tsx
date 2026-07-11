@@ -22,12 +22,12 @@ export default function TopNav() {
   return (
     <header className="sticky top-0 z-40 border-b border-[#2e2e2e] bg-[#121212]/95 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-      <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
           <Image
             src="/logo.png"
             alt="PeerVote Logo"
-            width={48}
-            height={48}
+            width={56}
+            height={56}
             className="rounded-lg"
           />
           <span className="hidden text-sm font-semibold tracking-tight text-[#f5f5f5] sm:block">PeerVote</span>
