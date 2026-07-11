@@ -14,7 +14,7 @@ export default function ResetPasswordModal({ onClose }: { onClose: () => void })
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  async function handleSubmit() {
+async function handleSubmit() {
     setError(null);
     setSuccess(null);
 
@@ -28,6 +28,16 @@ export default function ResetPasswordModal({ onClose }: { onClose: () => void })
       return;
     }
 
+    // --- NEW: Client-side validation ---
+    // Checks if the password contains at least one letter and one number
+    const hasLetter = /[a-zA-Z]/.test(newPassword);
+    const hasNumber = /[0-9]/.test(newPassword);
+    
+    if (!hasLetter || !hasNumber) {
+      setError("New password must contain both letters and numbers.");
+      return;
+    }
+
     if (newPassword !== confirmNewPassword) {
       setError("New password and confirmation do not match.");
       return;
@@ -38,7 +48,13 @@ export default function ResetPasswordModal({ onClose }: { onClose: () => void })
       const { error: changeError } = await changePassword(email, currentPassword, newPassword);
 
       if (changeError) {
-        setError(changeError);
+        // --- NEW: Intercept raw Supabase errors ---
+        // Catching the exact string from your image as a fallback
+        if (changeError.includes("Password should contain at least one character of each")) {
+          setError("New password must contain both letters and numbers.");
+        } else {
+          setError(changeError); // Show any other errors normally
+        }
         return;
       }
 
