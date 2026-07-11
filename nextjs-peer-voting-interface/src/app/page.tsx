@@ -2,6 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { isValidStudentEmail } from "@/lib/constants";
 import ExcludedModal from "@/components/ExcludedModal";
@@ -70,8 +71,15 @@ export default function AuthPage() {
     <main className="flex min-h-screen items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="mb-8 flex flex-col items-center text-center">
-          <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#4f46e5] text-lg font-bold text-white">
-            PV
+        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-2xl">
+            <Image
+              src="/logo.png"
+              alt="PeerVote Logo"
+              width={48}
+              height={48}
+              priority
+              className="rounded-2xl"
+            />
           </div>
           <h1 className="text-2xl font-semibold tracking-tight text-[#f5f5f5]">PeerVote</h1>
           <p className="mt-1 text-sm text-[#a1a1aa]">Anonymous peer-voting for Mecha 24A</p>
