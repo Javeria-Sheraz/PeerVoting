@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import type { PollAnswerArchive } from "@/lib/types";
 
-// Keep this type simple, mapping the flat view columns to the expected structure
 type ArchiveRow = PollAnswerArchive & { 
   question: string; 
   expires_at: string; 
@@ -35,7 +34,6 @@ export default function ArchivePage() {
       const from = pageIndex * PAGE_SIZE;
       const to = from + PAGE_SIZE - 1;
 
-      // Now we just select everything from the flat view!
       const { data, error: fetchError } = await supabase
         .from("poll_answers_archive")
         .select("*") 
@@ -73,19 +71,34 @@ export default function ArchivePage() {
 
   return (
     <div>
-      {/* ... keep your Header and Error UI exactly as they were ... */}
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold text-[#f5f5f5]">All Answers Archive</h1>
+        <p className="text-sm text-[#a1a1aa]">A historical directory of every completed poll and its top finishers.</p>
+      </div>
+
+      {error && (
+        <div className="mb-4 rounded-lg border border-[#3f1d1d] bg-[#241414] px-3 py-2 text-sm text-[#f87171]">
+          {error}
+        </div>
+      )}
 
       {loading ? (
-        /* ... keep your loading skeleton ... */
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="card-surface h-24 animate-pulse rounded-2xl" />
+          ))}
+        </div>
       ) : rows.length === 0 ? (
-        /* ... keep your empty state ... */
+        <div className="card-surface flex flex-col items-center justify-center rounded-2xl py-16 text-center">
+          <span className="mb-3 text-3xl">📜</span>
+          <p className="text-sm text-[#a1a1aa]">No archived poll results yet.</p>
+        </div>
       ) : (
         <div className="space-y-3">
           {rows.map((row) => (
             <div key={row.poll_id} className="card-surface fade-in rounded-2xl p-5">
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="max-w-xl">
-                  {/* Updated to use flat data */}
                   <h3 className="text-sm font-semibold text-[#f5f5f5]">{row.question ?? "Untitled poll"}</h3>
                   <p className="mt-1 text-xs text-[#71717a]">
                     {row.total_votes_cast} votes cast
@@ -113,7 +126,23 @@ export default function ArchivePage() {
             </div>
           ))}
 
-          {/* ... Load More Section (Your current code works perfectly here) ... */}
+          {hasMore && (
+            <div className="pt-4 pb-8 flex justify-center">
+              <button
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="rounded-lg bg-[#2e2e2e] px-4 py-2 text-sm font-medium text-[#e4e4e7] transition-colors hover:bg-[#3f3f46] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loadingMore ? "Loading..." : "Load More"}
+              </button>
+            </div>
+          )}
+          
+          {!hasMore && rows.length > 0 && (
+            <p className="pt-4 pb-8 text-center text-xs text-[#71717a]">
+              You have reached the end of the archive.
+            </p>
+          )}
         </div>
       )}
     </div>
