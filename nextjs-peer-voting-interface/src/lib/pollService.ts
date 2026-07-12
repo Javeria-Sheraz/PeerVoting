@@ -195,12 +195,14 @@ export async function checkUserHasActivePoll(
   return Boolean(data);
 }
 
-export async function fetchVoteCount(supabase: SupabaseClient, pollId: string) {
+export async function fetchTotalVoteCount(supabase: SupabaseClient, pollId: string) {
   const { data, error } = await supabase
     .from("poll_results")
     .select("vote_count")
-    .eq("poll_id", pollId)
-    .maybeSingle();
+    .eq("poll_id", pollId);
     
-  return data?.vote_count ?? 0;
+  if (error) return 0;
+  
+  // Sum up the vote_count from all rows returned for this poll
+  return data.reduce((total, row) => total + (row.vote_count || 0), 0);
 }
