@@ -1,16 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { Poll } from "@/lib/types";
 import CountdownTimer from "@/components/CountdownTimer";
 import RollNumberPicker from "@/components/RollNumberPicker";
 import EditExpirationModal from "@/components/EditExpirationModal";
 import ConfirmModal from "@/components/ConfirmModal";
-import { getSupabaseClient } from "@/lib/supabase/client";
-import { fetchVoteCount } from "@/lib/pollService";
 
 export default function ActivePollCard({
   poll,
+  totalVotes, // <--- ADDED: Passed from parent
   creatorRoll,
   hasVoted,
   isAdmin,
@@ -22,6 +21,7 @@ export default function ActivePollCard({
   onClose,
 }: {
   poll: Poll;
+  totalVotes: number; // <--- ADDED: Type
   creatorRoll: string;
   hasVoted: boolean;
   isAdmin: boolean;
@@ -39,17 +39,6 @@ export default function ActivePollCard({
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [busyAction, setBusyAction] = useState(false);
-  const [voteCount, setVoteCount] = useState<number | null>(null);
-
-  // Fetch total vote count on load
-  useEffect(() => {
-    async function loadCount() {
-      const supabase = getSupabaseClient();
-      const count = await fetchVoteCount(supabase, poll.id);
-      setVoteCount(count);
-    }
-    loadCount();
-  }, [poll.id]);
 
   async function handleSubmit() {
     if (!selectedRoll) {
@@ -64,10 +53,6 @@ export default function ActivePollCard({
       setError(voteError);
     } else {
       setVoted(true);
-      // Refresh count after successful vote
-      const supabase = getSupabaseClient();
-      const updatedCount = await fetchVoteCount(supabase, poll.id);
-      setVoteCount(updatedCount);
     }
   }
 
@@ -110,8 +95,9 @@ export default function ActivePollCard({
             {creatorRoll}
           </span>
         </div>
+        {/* Uses the prop passed from parent */}
         <div className="text-xs font-medium text-[#a1a1aa]">
-          {voteCount !== null ? `${voteCount} votes` : "..."}
+          {totalVotes} votes
         </div>
       </div>
 
