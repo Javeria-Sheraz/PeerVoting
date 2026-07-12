@@ -78,13 +78,20 @@ export async function fetchPollResults(supabase: SupabaseClient, pollId: string)
   return (data ?? []) as PollResult[];
 }
 
-export async function fetchArchive(supabase: SupabaseClient): Promise<(PollAnswerArchive & { poll?: Poll })[]> {
+export async function fetchArchive(supabase: SupabaseClient, page: number = 0) {
+  const pageSize = 10;
+  // Calculate the range for pagination (0-9 for page 0, 10-19 for page 1, etc.)
+  const from = page * pageSize;
+  const to = from + pageSize - 1;
+
   const { data, error } = await supabase
     .from("poll_answers_archive")
-    .select("*, poll:polls(*)")
-    .order("id", { ascending: false });
+    .select("*") // No join needed anymore!
+    .order("id", { ascending: false })
+    .range(from, to); // This implements your 10-at-a-time pagination
+
   if (error) throw error;
-  return (data ?? []) as (PollAnswerArchive & { poll?: Poll })[];
+  return data ?? [];
 }
 
 export async function createPoll(
