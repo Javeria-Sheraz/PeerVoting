@@ -11,7 +11,8 @@ import {
   deletePollCascade,
   updatePollExpiration,
   createPoll,
-  closePollAdmin // <--- ADD THIS
+  closePollAdmin,
+  checkUserHasActivePoll // <--- 1. IMPORT ADDED
 } from "@/lib/pollService";
 import type { Poll, Profile } from "@/lib/types";
 import ActivePollCard from "@/components/ActivePollCard";
@@ -26,6 +27,9 @@ export default function ActivePollsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  
+  // <--- 2. STATE ADDED
+  const [hasActivePoll, setHasActivePoll] = useState(false); 
 
   const loadData = useCallback(async () => {
     const supabase = getSupabaseClient();
@@ -35,13 +39,18 @@ export default function ActivePollsPage() {
     try {
       const activePolls = await fetchActivePolls(supabase);
       const creatorIds = [...new Set(activePolls.map((p) => p.creator_id))];
-      const [profilesMap, voted] = await Promise.all([
+      
+      // <--- 3. FETCH ADDED TO PROMISE.ALL
+      const [profilesMap, voted, activeStatus] = await Promise.all([
         fetchProfilesByIds(supabase, creatorIds),
         fetchUserVotedPollIds(supabase, profile.id),
+        checkUserHasActivePoll(supabase, profile.id) 
       ]);
+      
       setPolls(activePolls);
       setProfilesById(profilesMap);
       setVotedIds(voted);
+      setHasActivePoll(activeStatus); // <--- SET STATE
     } catch {
       setError("Failed to load active polls. Please check your Supabase configuration.");
     } finally {
@@ -77,7 +86,6 @@ export default function ActivePollsPage() {
     const supabase = getSupabaseClient();
     if (!supabase) return;
     await closePollAdmin(supabase, pollId);
-    // Refresh the feed so the poll immediately disappears from Active
     void loadData();
   }
 
@@ -103,6 +111,9 @@ export default function ActivePollsPage() {
   }
 
   const canCreate = profile?.can_create_polls || profile?.is_admin;
+  
+  // Admins bypass the 1-poll rule in the database, so we bypass it in the UI too
+  const isButtonDisabled = hasActivePoll && !profile?.is_admin; 
 
   return (
     <div>
@@ -111,12 +122,16 @@ export default function ActivePollsPage() {
           <h1 className="text-xl font-semibold text-[#f5f5f5]">Active Polls</h1>
           <p className="text-sm text-[#a1a1aa]">Cast your anonymous vote before time runs out.</p>
         </div>
+        
+        {/* <--- 4. BUTTON UI UPDATED */}
         {canCreate && (
           <button
             onClick={() => setShowCreate(true)}
-            className="rounded-lg bg-[#4f46e5] px-4 py-2 text-sm font-semibold text-white hover:bg-[#4338ca]"
+            disabled={isButtonDisabled}
+            title={isButtonDisabled ? "You must wait for your current poll to expire" : "Create a new poll"}
+            className="rounded-lg bg-[#4f46e5] px-4 py-2 text-sm font-semibold text-white hover:bg-[#4338ca] disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            + Create Poll
+            {isButtonDisabled ? "Poll Already Active" : "+ Create Poll"}
           </button>
         )}
       </div>
@@ -152,7 +167,7 @@ export default function ActivePollsPage() {
               onDelete={handleDelete}
               onUpdateExpiration={handleUpdateExpiration}
               onExpire={loadData}
-              onClose={handleClose} // <--- ADD THIS LINE
+              onClose={handleClose}
             />
           ))}
         </div>
