@@ -178,3 +178,19 @@ export async function closePollAdmin(
     
   return { error: error?.message ?? null };
 }
+
+export async function checkUserHasActivePoll(
+  supabase: SupabaseClient, 
+  userId: string
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc("has_active_poll", {
+    user_uuid: userId,
+  });
+  
+  if (error) {
+    console.error("Error checking active poll status:", error);
+    return true; // Fail safe: assume they have one to prevent database errors
+  }
+  
+  return Boolean(data);
+}
