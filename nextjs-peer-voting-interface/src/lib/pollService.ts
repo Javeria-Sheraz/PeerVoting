@@ -194,3 +194,13 @@ export async function checkUserHasActivePoll(
   
   return Boolean(data);
 }
+
+export async function fetchVoteCount(supabase: SupabaseClient, pollId: string) {
+  const { data, error } = await supabase
+    .from("poll_results")
+    .select("vote_count")
+    .eq("poll_id", pollId)
+    .maybeSingle();
+    
+  return data?.vote_count ?? 0;
+}
