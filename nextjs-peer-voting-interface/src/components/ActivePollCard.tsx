@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { Poll } from "@/lib/types";
 import CountdownTimer from "@/components/CountdownTimer";
 import RollNumberPicker from "@/components/RollNumberPicker";
 import EditExpirationModal from "@/components/EditExpirationModal";
 import ConfirmModal from "@/components/ConfirmModal";
+import { getSupabaseClient } from "@/lib/supabase/client";
+import { fetchVoteCount } from "@/lib/pollService";
 
 export default function ActivePollCard({
   poll,
@@ -17,7 +19,7 @@ export default function ActivePollCard({
   onDelete,
   onUpdateExpiration,
   onExpire,
-  onClose, // <--- YOU JUST NEED TO ADD THIS LINE HERE
+  onClose,
 }: {
   poll: Poll;
   creatorRoll: string;
@@ -28,7 +30,7 @@ export default function ActivePollCard({
   onDelete: (pollId: string) => Promise<void>;
   onUpdateExpiration: (pollId: string, isoDate: string) => Promise<void>;
   onExpire: () => void;
-  onClose: (pollId: string) => Promise<void>; // <--- ADD THIS LINE
+  onClose: (pollId: string) => Promise<void>;
 }) {
   const [selectedRoll, setSelectedRoll] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -37,6 +39,17 @@ export default function ActivePollCard({
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [busyAction, setBusyAction] = useState(false);
+  const [voteCount, setVoteCount] = useState<number | null>(null);
+
+  // Fetch total vote count on load
+  useEffect(() => {
+    async function loadCount() {
+      const supabase = getSupabaseClient();
+      const count = await fetchVoteCount(supabase, poll.id);
+      setVoteCount(count);
+    }
+    loadCount();
+  }, [poll.id]);
 
   async function handleSubmit() {
     if (!selectedRoll) {
@@ -51,6 +64,10 @@ export default function ActivePollCard({
       setError(voteError);
     } else {
       setVoted(true);
+      // Refresh count after successful vote
+      const supabase = getSupabaseClient();
+      const updatedCount = await fetchVoteCount(supabase, poll.id);
+      setVoteCount(updatedCount);
     }
   }
 
@@ -86,14 +103,21 @@ export default function ActivePollCard({
         </div>
       )}
 
-      <div className="mb-3 flex items-center gap-2 pr-16">
-        <span className="text-xs font-medium text-[#71717a]">Created by:</span>
-        <span className="rounded-full bg-[#4f46e5]/15 px-2 py-0.5 text-xs font-semibold text-[#a5b4fc]">
-          {creatorRoll}
-        </span>
+      <div className="mb-3 flex items-center justify-between pr-16">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-[#71717a]">Created by:</span>
+          <span className="rounded-full bg-[#4f46e5]/15 px-2 py-0.5 text-xs font-semibold text-[#a5b4fc]">
+            {creatorRoll}
+          </span>
+        </div>
+        <div className="text-xs font-medium text-[#a1a1aa]">
+          {voteCount !== null ? `${voteCount} votes` : "..."}
+        </div>
       </div>
 
-      <h3 className="mb-3 text-base font-semibold leading-snug text-[#f5f5f5]">{poll.question}</h3>
+      <h3 className="mb-3 text-base font-semibold leading-snug text-[#f5f5f5]">
+        {poll.question}
+      </h3>
 
       <div className="mb-4">
         <CountdownTimer expiresAt={poll.expires_at} onExpire={onExpire} />
@@ -102,12 +126,20 @@ export default function ActivePollCard({
       {voted ? (
         <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-[#1a2e2a] bg-[#10231d]/40 py-8 text-center">
           <span className="mb-1 text-2xl">🔒</span>
-          <p className="text-sm font-medium text-[#34d399]">Your secret vote was recorded</p>
-          <p className="mt-1 text-xs text-[#71717a]">Results stay hidden until the poll closes.</p>
+          <p className="text-sm font-medium text-[#34d399]">
+            Your secret vote was recorded
+          </p>
+          <p className="mt-1 text-xs text-[#71717a]">
+            Results stay hidden until the poll closes.
+          </p>
         </div>
       ) : (
         <div>
-          <RollNumberPicker value={selectedRoll} onChange={setSelectedRoll} excludeRoll={ownRoll} />
+          <RollNumberPicker
+            value={selectedRoll}
+            onChange={setSelectedRoll}
+            excludeRoll={ownRoll}
+          />
           {error && <p className="mt-2 text-xs text-[#f87171]">{error}</p>}
           <button
             onClick={handleSubmit}
