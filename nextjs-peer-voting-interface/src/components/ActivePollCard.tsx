@@ -9,7 +9,7 @@ import ConfirmModal from "@/components/ConfirmModal";
 
 export default function ActivePollCard({
   poll,
-  totalVotes, // <--- ADDED: Passed from parent
+  totalVotes,
   creatorRoll,
   hasVoted,
   isAdmin,
@@ -21,7 +21,7 @@ export default function ActivePollCard({
   onClose,
 }: {
   poll: Poll;
-  totalVotes: number; // <--- ADDED: Type
+  totalVotes: number;
   creatorRoll: string;
   hasVoted: boolean;
   isAdmin: boolean;
@@ -88,16 +88,16 @@ export default function ActivePollCard({
         </div>
       )}
 
-      <div className="mb-3 flex items-center justify-between pr-16">
-        <div className="flex items-center gap-2">
+      {/* Structured to avoid button overlap using pr-16 */}
+      <div className="mb-3 pr-16">
+        <div className="flex items-center gap-2 mb-1">
           <span className="text-xs font-medium text-[#71717a]">Created by:</span>
           <span className="rounded-full bg-[#4f46e5]/15 px-2 py-0.5 text-xs font-semibold text-[#a5b4fc]">
             {creatorRoll}
           </span>
         </div>
-        {/* Uses the prop passed from parent */}
         <div className="text-xs font-medium text-[#a1a1aa]">
-          {totalVotes} votes
+          {totalVotes} total votes cast
         </div>
       </div>
 
