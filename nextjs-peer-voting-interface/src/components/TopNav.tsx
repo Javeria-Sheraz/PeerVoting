@@ -30,7 +30,7 @@ export default function TopNav() {
             alt="PeerVote Logo"
             width={100}
             height={100}
-            className="rounded-lg shrink-0 w-8 h-12 sm:w-[100px] sm:h-[100px]"
+            className="rounded-lg shrink-0 w-11 h-11 object-contain sm:w-[100px] sm:h-[100px]"
           />
           <span className="hidden text-sm font-semibold tracking-tight text-[#f5f5f5] sm:block">PeerVote</span>
         </div>
