@@ -20,13 +20,30 @@ export default function ArchivePage() {
   
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
+  
+  // New state to securely track permissions for masking
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [votedPolls, setVotedPolls] = useState<Set<string>>(new Set());
 
   const loadArchiveChunk = useCallback(async (pageIndex: number) => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
 
-    if (pageIndex === 0) setLoading(true);
-    else setLoadingMore(true);
+    if (pageIndex === 0) {
+      setLoading(true);
+      
+      // On initial load, fetch the user's admin status and voting history
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profile } = await supabase.from("profiles").select("is_admin").eq("id", user.id).single();
+        setIsAdmin(profile?.is_admin || false);
+
+        const { data: votes } = await supabase.from("vote_trackers").select("poll_id").eq("user_id", user.id);
+        setVotedPolls(new Set((votes ?? []).map(v => v.poll_id)));
+      }
+    } else {
+      setLoadingMore(true);
+    }
     
     setError(null);
 
@@ -95,36 +112,48 @@ export default function ArchivePage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {rows.map((row) => (
-            <div key={row.poll_id} className="card-surface fade-in rounded-2xl p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="max-w-xl">
-                  <h3 className="text-sm font-semibold text-[#f5f5f5]">{row.question ?? "Untitled poll"}</h3>
-                  <p className="mt-1 text-xs text-[#71717a]">
-                    {row.total_votes_cast} votes cast
-                    {row.expires_at ? ` · Ended ${new Date(row.expires_at).toLocaleDateString()}` : ""}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  {[
-                    { label: row.top_1_roll, medal: "🥇" },
-                    { label: row.top_2_roll, medal: "🥈" },
-                    { label: row.top_3_roll, medal: "🥉" },
-                  ].map(
-                    (entry, idx) =>
-                      entry.label && (
-                        <div key={idx} className="flex items-center gap-1.5 rounded-lg border border-[#2e2e2e] bg-[#161616] px-2.5 py-1.5">
-                          <span>{entry.medal}</span>
-                          <span className="text-xs font-semibold text-[#d4d4d8]">
-                            {entry.label.replace("2024mc", "#")}
-                          </span>
-                        </div>
+          {rows.map((row) => {
+            // Check if this specific user is allowed to see the medals for this specific poll
+            const canViewResults = isAdmin || votedPolls.has(row.poll_id);
+            
+            return (
+              <div key={row.poll_id} className="card-surface fade-in rounded-2xl p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="max-w-xl">
+                    <h3 className="text-sm font-semibold text-[#f5f5f5]">{row.question ?? "Untitled poll"}</h3>
+                    <p className="mt-1 text-xs text-[#71717a]">
+                      {row.total_votes_cast} votes cast
+                      {row.expires_at ? ` · Ended ${new Date(row.expires_at).toLocaleDateString()}` : ""}
+                    </p>
+                  </div>
+                  <div className="flex gap-2">
+                    {canViewResults ? (
+                      [
+                        { label: row.top_1_roll, medal: "🥇" },
+                        { label: row.top_2_roll, medal: "🥈" },
+                        { label: row.top_3_roll, medal: "🥉" },
+                      ].map(
+                        (entry, idx) =>
+                          entry.label && (
+                            <div key={idx} className="flex items-center gap-1.5 rounded-lg border border-[#2e2e2e] bg-[#161616] px-2.5 py-1.5">
+                              <span>{entry.medal}</span>
+                              <span className="text-xs font-semibold text-[#d4d4d8]">
+                                {entry.label.replace("2024mc", "#")}
+                              </span>
+                            </div>
+                          )
                       )
-                  )}
+                    ) : (
+                      <div className="flex items-center gap-1.5 rounded-lg border border-[#2e2e2e] bg-[#1a1a1a]/50 px-3 py-1.5">
+                        <span className="text-sm">🔒</span>
+                        <span className="text-xs font-medium text-[#a1a1aa]">You did not vote on this poll!</span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
           {hasMore && (
             <div className="pt-4 pb-8 flex justify-center">
