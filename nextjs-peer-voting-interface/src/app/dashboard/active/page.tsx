@@ -12,7 +12,8 @@ import {
   updatePollExpiration,
   createPoll,
   closePollAdmin,
-  checkUserHasActivePoll
+  checkUserHasActivePoll,
+  fetchTotalVoteCount // <-- Imported our secure function
 } from "@/lib/pollService";
 import type { Poll, Profile } from "@/lib/types";
 import ActivePollCard from "@/components/ActivePollCard";
@@ -31,7 +32,7 @@ export default function ActivePollsPage() {
   // State for 1-poll limit
   const [hasActivePoll, setHasActivePoll] = useState(false);
   
-  // NEW: State for bulk vote counts
+  // State for bulk vote counts
   const [countsMap, setCountsMap] = useState<Record<string, number>>({});
 
   const loadData = useCallback(async () => {
@@ -43,29 +44,32 @@ export default function ActivePollsPage() {
       const activePolls = await fetchActivePolls(supabase);
       const creatorIds = [...new Set(activePolls.map((p) => p.creator_id))];
       
-      // Perform bulk fetches: Profiles, Votes, Active Status, and Total Results
-      const [profilesMap, voted, activeStatus, resultsData] = await Promise.all([
+      // Perform bulk fetches: Profiles, Votes, and Active Status
+      const [profilesMap, voted, activeStatus] = await Promise.all([
         fetchProfilesByIds(supabase, creatorIds),
         fetchUserVotedPollIds(supabase, profile.id),
         checkUserHasActivePoll(supabase, profile.id),
-        // Fetch all results for these active polls in one query
-        supabase
-          .from("poll_results")
-          .select("poll_id, vote_count")
-          .in("poll_id", activePolls.map((p) => p.id))
       ]);
       
-      // Map results for quick lookup
-      const newCountsMap = resultsData.data?.reduce((acc, row) => {
-        acc[row.poll_id] = (acc[row.poll_id] || 0) + row.vote_count;
+      // NEW: Securely fetch the total vote counts for each poll.
+      // We use our secure RPC function so it works even if the user hasn't voted.
+      const voteCounts = await Promise.all(
+        activePolls.map(async (poll) => {
+          const count = await fetchTotalVoteCount(supabase, poll.id);
+          return { pollId: poll.id, count };
+        })
+      );
+      
+      const newCountsMap = voteCounts.reduce((acc, { pollId, count }) => {
+        acc[pollId] = count;
         return acc;
-      }, {} as Record<string, number>) || {};
+      }, {} as Record<string, number>);
 
       setPolls(activePolls);
       setProfilesById(profilesMap);
       setVotedIds(voted);
       setHasActivePoll(activeStatus);
-      setCountsMap(newCountsMap); // Update state
+      setCountsMap(newCountsMap); 
     } catch {
       setError("Failed to load active polls. Please check your Supabase configuration.");
     } finally {
@@ -173,7 +177,7 @@ export default function ActivePollsPage() {
             <ActivePollCard
               key={poll.id}
               poll={poll}
-              totalVotes={countsMap[poll.id] || 0} // <--- PROP ADDED
+              totalVotes={countsMap[poll.id] || 0}
               creatorRoll={profilesById.get(poll.creator_id)?.roll_number ?? "Unknown"}
               hasVoted={votedIds.has(poll.id)}
               isAdmin={Boolean(profile?.is_admin)}
