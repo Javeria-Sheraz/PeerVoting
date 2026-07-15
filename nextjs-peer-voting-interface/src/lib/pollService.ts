@@ -203,13 +203,15 @@ export async function checkUserHasActivePoll(
 }
 
 export async function fetchTotalVoteCount(supabase: SupabaseClient, pollId: string) {
-  const { data, error } = await supabase
-    .from("poll_results")
-    .select("vote_count")
-    .eq("poll_id", pollId);
+  // Call the secure RPC function to get the total regardless of RLS blocks
+  const { data, error } = await supabase.rpc("get_poll_total_votes", { 
+    p_poll_id: pollId 
+  });
     
-  if (error) return 0;
+  if (error) {
+    console.error("Error fetching total votes:", error);
+    return 0;
+  }
   
-  // Sum up the vote_count from all rows returned for this poll
-  return data.reduce((total, row) => total + (row.vote_count || 0), 0);
+  return data || 0;
 }
