@@ -23,8 +23,8 @@ export default function TopNav() {
 
   return (
     <header className="sticky top-0 z-40 border-b border-[#2e2e2e] bg-[#121212]/95 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-          <div className="flex items-center gap-3">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-2 py-3 sm:gap-4 sm:px-6">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
           <Image
             src="/logo.png"
             alt="PeerVote Logo"
@@ -35,7 +35,7 @@ export default function TopNav() {
           <span className="hidden text-sm font-semibold tracking-tight text-[#f5f5f5] sm:block">PeerVote</span>
         </div>
 
-        <nav className="flex flex-1 items-center justify-center">
+        <nav className="flex flex-1 items-center justify-center min-w-0 overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-1 rounded-xl border border-[#2e2e2e] bg-[#1a1a1a] p-1">
             {tabs.map((tab) => {
               const active = pathname?.startsWith(tab.href);
@@ -54,7 +54,7 @@ export default function TopNav() {
           </div>
         </nav>
 
-        <div className="relative">
+        <div className="relative shrink-0">
           <button
             onClick={() => setMenuOpen((v) => !v)}
             className="flex items-center gap-2 rounded-full border border-[#2e2e2e] bg-[#1a1a1a] py-1 pl-1 pr-2.5 hover:border-[#4f46e5]/60"
