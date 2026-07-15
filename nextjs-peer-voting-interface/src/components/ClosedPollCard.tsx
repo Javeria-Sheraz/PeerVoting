@@ -42,6 +42,9 @@ export default function ClosedPollCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poll.id]);
 
+  // Magical Deduction: If you aren't an admin, and the DB gave you an empty array, you didn't vote!
+  const isResultsHidden = !isAdmin && results !== undefined && results.length === 0;
+
   return (
     <div className="card-surface fade-in relative flex flex-col rounded-2xl p-5">
       {isAdmin && (
@@ -70,6 +73,14 @@ export default function ClosedPollCard({
       {results === undefined ? (
         <div className="flex items-center justify-center py-8">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#4f46e5] border-t-transparent" />
+        </div>
+      ) : isResultsHidden ? (
+        <div className="my-4 flex flex-col items-center justify-center rounded-xl border border-[#2e2e2e] bg-[#1a1a1a]/50 py-8 text-center">
+          <span className="mb-2 text-2xl opacity-80">🔒</span>
+          <p className="text-sm font-semibold text-[#f5f5f5]">Results Hidden</p>
+          <p className="mt-1 px-4 text-xs text-[#71717a]">
+            You did not participate in this poll before it closed.
+          </p>
         </div>
       ) : (
         <>
