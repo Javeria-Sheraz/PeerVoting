@@ -4,8 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
 import {
-  fetchPollsWithCreator,       // replaces fetchActivePolls + fetchProfilesByIds
-  fetchMyVotedPollIds,         // replaces fetchUserVotedPollIds (was broken)
+  fetchPollsWithCreator,
   submitSecretVote,
   deletePollCascade,
   updatePollExpiration,
@@ -15,15 +14,15 @@ import {
   fetchTotalVoteCount,
   type PollWithCreator,
 } from "@/lib/pollService";
+// fetchMyVotedPollIds import is GONE — has_voted comes from the RPC directly
 import ActivePollCard from "@/components/ActivePollCard";
 import CreatePollModal from "@/components/CreatePollModal";
 
 export default function ActivePollsPage() {
   const { profile } = useAuth();
 
-  // PollWithCreator already contains creator_roll — no separate profiles map needed
   const [polls, setPolls] = useState<PollWithCreator[]>([]);
-  const [votedIds, setVotedIds] = useState<Set<string>>(new Set());
+  // votedIds state is GONE — poll.has_voted replaces it entirely
   const [countsMap, setCountsMap] = useState<Record<string, number>>({});
   const [hasActivePoll, setHasActivePoll] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -38,34 +37,31 @@ export default function ActivePollsPage() {
     setError(null);
 
     try {
-      // Single RPC replaces fetchActivePolls + fetchProfilesByIds.
-      // is_active is computed by the DB; we filter here for the active tab.
       const allPolls = await fetchPollsWithCreator(supabase);
+      // ORDER BY created_at DESC is now in the SQL function, so this
+      // filter preserves the correct newest-first ordering (Issue 3 fixed).
       const activePolls = allPolls.filter((p) => p.is_active);
 
-      // fetchMyVotedPollIds uses get_my_voted_poll_ids() RPC (SECURITY DEFINER).
-      // This is the fix for Issue 3 — the old direct vote_trackers query
-      // returned empty rows because non-admins have no SELECT policy on that table.
-      const [voted, activeStatus] = await Promise.all([
-        fetchMyVotedPollIds(supabase),
+      // No fetchMyVotedPollIds call — has_voted is already on each poll object.
+      // checkUserHasActivePoll is still needed for the "create poll" button gate.
+      const [activeStatus, ...voteCounts] = await Promise.all([
         checkUserHasActivePoll(supabase, profile.id),
+        ...activePolls.map((poll) =>
+          fetchTotalVoteCount(supabase, poll.id).then((count) => ({
+            pollId: poll.id,
+            count,
+          }))
+        ),
       ]);
 
-      // Fetch total vote counts for all active polls in parallel
-      const voteCounts = await Promise.all(
-        activePolls.map(async (poll) => {
-          const count = await fetchTotalVoteCount(supabase, poll.id);
-          return { pollId: poll.id, count };
-        })
-      );
-      const newCountsMap = voteCounts.reduce(
+      const newCountsMap = (voteCounts as { pollId: string; count: number }[]).reduce(
         (acc, { pollId, count }) => ({ ...acc, [pollId]: count }),
         {} as Record<string, number>
       );
 
       setPolls(activePolls);
-      setVotedIds(voted);
-      setHasActivePoll(activeStatus);
+      // No setVotedIds — has_voted is on each poll already
+      setHasActivePoll(activeStatus as boolean);
       setCountsMap(newCountsMap);
     } catch {
       setError("Failed to load active polls. Please check your Supabase configuration.");
@@ -79,25 +75,29 @@ export default function ActivePollsPage() {
     return () => clearTimeout(id);
   }, [loadData]);
 
-// AFTER
-async function handleVote(pollId: string, roll: string) {
-  const supabase = getSupabaseClient();
-  if (!supabase || !profile) return { error: "Not connected." };
-  const result = await submitSecretVote(supabase, pollId, profile.id, roll);
-  if (!result.error) {
-    // String() is explicit here so the Set's contents are always the same
-    // type as the String(poll.id) lookup in the render block.
-    setVotedIds((prev) => new Set(prev).add(String(pollId)));
-    setCountsMap((prev) => ({ ...prev, [pollId]: (prev[pollId] || 0) + 1 }));
+  async function handleVote(pollId: string, roll: string) {
+    const supabase = getSupabaseClient();
+    if (!supabase || !profile) return { error: "Not connected." };
+    const result = await submitSecretVote(supabase, pollId, profile.id, roll);
+    if (!result.error) {
+      // Optimistic update: flip has_voted on the specific poll in the array.
+      // No Set, no type coercion — just a direct object mutation.
+      setPolls((prev) =>
+        prev.map((p) => (String(p.id) === String(pollId) ? { ...p, has_voted: true } : p))
+      );
+      setCountsMap((prev) => ({
+        ...prev,
+        [pollId]: (prev[pollId] || 0) + 1,
+      }));
+    }
+    return result;
   }
-  return result;
-}
 
   async function handleDelete(pollId: string) {
     const supabase = getSupabaseClient();
     if (!supabase) return;
     await deletePollCascade(supabase, pollId);
-    setPolls((prev) => prev.filter((p) => p.id !== pollId));
+    setPolls((prev) => prev.filter((p) => String(p.id) !== String(pollId)));
   }
 
   async function handleClose(pollId: string) {
@@ -112,7 +112,7 @@ async function handleVote(pollId: string, roll: string) {
     if (!supabase) return;
     await updatePollExpiration(supabase, pollId, isoDate);
     setPolls((prev) =>
-      prev.map((p) => (p.id === pollId ? { ...p, expires_at: isoDate } : p))
+      prev.map((p) => (String(p.id) === String(pollId) ? { ...p, expires_at: isoDate } : p))
     );
   }
 
@@ -176,8 +176,8 @@ async function handleVote(pollId: string, roll: string) {
               key={poll.id}
               poll={poll}
               totalVotes={countsMap[poll.id] || 0}
-              creatorRoll={poll.creator_roll}          // ← direct from RPC, no map lookup
-              hasVoted={votedIds.has(String(poll.id))} // ← now correctly populated via RPC
+              creatorRoll={poll.creator_roll}
+              hasVoted={poll.has_voted}  // ← direct from poll object, no Set lookup
               isAdmin={Boolean(profile?.is_admin)}
               ownRoll={profile?.roll_number ?? null}
               onVote={handleVote}
