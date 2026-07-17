@@ -6,6 +6,7 @@ import type { Poll, PollResult, PollAnswerArchive, Profile, WhitelistEntry } fro
 // creator's roll number and a precomputed is_active flag from the DB.
 // Use this everywhere instead of Poll + a separate profiles lookup.
 
+// AFTER — add has_voted, remove nothing else
 export type PollWithCreator = {
   id: string;
   creator_id: string;
@@ -15,6 +16,7 @@ export type PollWithCreator = {
   is_archived: boolean;
   creator_roll: string;
   is_active: boolean;
+  has_voted: boolean;   // ← DB now computes this; no second RPC needed
 };
 
 export async function fetchProfilesByIds(supabase: SupabaseClient, ids: string[]): Promise<Map<string, Profile>> {
