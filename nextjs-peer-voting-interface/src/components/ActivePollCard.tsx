@@ -40,21 +40,21 @@ export default function ActivePollCard({
   const [showDelete, setShowDelete] = useState(false);
   const [busyAction, setBusyAction] = useState(false);
 
-  async function handleSubmit() {
-    if (!selectedRoll) {
-      setError("Select a roll number first.");
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    const { error: voteError } = await onVote(poll.id, selectedRoll);
-    setSubmitting(false);
-    if (voteError) {
-      setError(voteError);
-    } else {
-      setVoted(true);
-    }
+async function handleSubmit() {
+  if (!selectedRoll) {
+    setError("Select a roll number first.");
+    return;
   }
+  setSubmitting(true);
+  setError(null);
+  const { error: voteError } = await onVote(poll.id, selectedRoll);
+  setSubmitting(false);
+  if (voteError) {
+    setError(voteError);
+  }
+  // No setVoted(true) — the parent updates votedIds in its own state,
+  // which causes a re-render of this component with hasVoted=true.
+}
 
   return (
     <div className="card-surface fade-in relative flex flex-col rounded-2xl p-5">
@@ -109,17 +109,17 @@ export default function ActivePollCard({
         <CountdownTimer expiresAt={poll.expires_at} onExpire={onExpire} />
       </div>
 
-      {voted ? (
-        <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-[#1a2e2a] bg-[#10231d]/40 py-8 text-center">
-          <span className="mb-1 text-2xl">🔒</span>
-          <p className="text-sm font-medium text-[#34d399]">
-            Your secret vote was recorded
-          </p>
-          <p className="mt-1 text-xs text-[#71717a]">
-            Results stay hidden until the poll closes.
-          </p>
-        </div>
-      ) : (
+{hasVoted ? (
+  <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-[#1a2e2a] bg-[#10231d]/40 py-8 text-center">
+    <span className="mb-1 text-2xl">🔒</span>
+    <p className="text-sm font-medium text-[#34d399]">
+      Your secret vote was recorded
+    </p>
+    <p className="mt-1 text-xs text-[#71717a]">
+      Results stay hidden until the poll closes.
+    </p>
+  </div>
+) : (
         <div>
           <RollNumberPicker
             value={selectedRoll}
