@@ -3,14 +3,20 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { fetchClosedPolls, fetchProfilesByIds, fetchPollResults, deletePollCascade } from "@/lib/pollService";
-import type { Poll, PollResult, Profile } from "@/lib/types";
+import {
+  fetchPollsWithCreator,   // replaces fetchClosedPolls + fetchProfilesByIds
+  fetchPollResults,
+  deletePollCascade,
+  type PollWithCreator,
+} from "@/lib/pollService";
+import type { PollResult } from "@/lib/types";
 import ClosedPollCard from "@/components/ClosedPollCard";
 
 export default function ClosedPollsPage() {
   const { profile } = useAuth();
-  const [polls, setPolls] = useState<Poll[]>([]);
-  const [profilesById, setProfilesById] = useState<Map<string, Profile>>(new Map());
+
+  // PollWithCreator has creator_roll built in — no profilesById map needed
+  const [polls, setPolls] = useState<PollWithCreator[]>([]);
   const [resultsByPoll, setResultsByPoll] = useState<Map<string, PollResult[]>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,11 +27,11 @@ export default function ClosedPollsPage() {
     setLoading(true);
     setError(null);
     try {
-      const closedPolls = await fetchClosedPolls(supabase);
-      const creatorIds = [...new Set(closedPolls.map((p) => p.creator_id))];
-      const profilesMap = await fetchProfilesByIds(supabase, creatorIds);
+      const allPolls = await fetchPollsWithCreator(supabase);
+      // is_active = false covers both: manually archived AND naturally expired polls.
+      // No more manual date arithmetic in JS — the DB computes this correctly.
+      const closedPolls = allPolls.filter((p) => !p.is_active);
       setPolls(closedPolls);
-      setProfilesById(profilesMap);
     } catch {
       setError("Failed to load closed polls. Please check your Supabase configuration.");
     } finally {
@@ -81,7 +87,7 @@ export default function ClosedPollsPage() {
             <ClosedPollCard
               key={poll.id}
               poll={poll}
-              creatorRoll={profilesById.get(poll.creator_id)?.roll_number ?? "Unknown"}
+              creatorRoll={poll.creator_roll}     // ← direct from RPC
               results={resultsByPoll.get(poll.id)}
               isAdmin={Boolean(profile?.is_admin)}
               onDelete={handleDelete}
