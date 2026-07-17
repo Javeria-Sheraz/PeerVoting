@@ -1,6 +1,22 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Poll, PollResult, PollAnswerArchive, Profile, WhitelistEntry } from "@/lib/types";
 
+// ── NEW TYPE ──────────────────────────────────────────────────────────────────
+// Returned by get_polls_with_creator(). Superset of Poll — includes the
+// creator's roll number and a precomputed is_active flag from the DB.
+// Use this everywhere instead of Poll + a separate profiles lookup.
+
+export type PollWithCreator = {
+  id: string;
+  creator_id: string;
+  question: string;
+  created_at: string;
+  expires_at: string;
+  is_archived: boolean;
+  creator_roll: string;
+  is_active: boolean;
+};
+
 export async function fetchProfilesByIds(supabase: SupabaseClient, ids: string[]): Promise<Map<string, Profile>> {
   if (ids.length === 0) return new Map();
   const { data } = await supabase.from("profiles").select("*").in("id", ids);
@@ -214,4 +230,53 @@ export async function fetchTotalVoteCount(supabase: SupabaseClient, pollId: stri
   }
   
   return data || 0;
+}
+
+
+// ── REPLACEMENT FOR fetchActivePolls + fetchClosedPolls + fetchProfilesByIds ──
+// Single RPC call returns ALL polls (active + closed) with creator_roll
+// already joined inside the SECURITY DEFINER function on the DB side.
+// The frontend filters by is_active to split the two views.
+// Excluded users receive zero rows because the gate is inside the function.
+
+export async function fetchPollsWithCreator(
+  supabase: SupabaseClient
+): Promise<PollWithCreator[]> {
+  const { data, error } = await supabase.rpc("get_polls_with_creator");
+  if (error) throw error;
+  return (data ?? []) as PollWithCreator[];
+}
+
+
+// ── REPLACEMENT FOR fetchUserVotedPollIds ─────────────────────────────────────
+// Queries vote_trackers via SECURITY DEFINER RPC instead of direct table access.
+// Non-admin users have no SELECT policy on vote_trackers, so the direct table
+// query always returned an empty set (the root cause of Issue 3).
+// This RPC returns only poll_ids where user_id = auth.uid().
+
+export async function fetchMyVotedPollIds(
+  supabase: SupabaseClient
+): Promise<Set<string>> {
+  const { data, error } = await supabase.rpc("get_my_voted_poll_ids");
+  if (error) {
+    console.error("fetchMyVotedPollIds error:", error);
+    return new Set();
+  }
+  // poll_id is bigint in the DB; Supabase JS returns it as number.
+  // Stringify so Set.has() matches string poll IDs used elsewhere.
+  return new Set((data ?? []).map((row: { poll_id: number }) => String(row.poll_id)));
+}
+
+
+// ── EXCLUSION STATUS CHECK ────────────────────────────────────────────────────
+// Lets the frontend show an explicit "access denied" UI rather than
+// silently showing an empty archive after RLS blocks the query.
+// Fails closed (returns true = excluded) on any error.
+
+export async function fetchIsExcluded(
+  supabase: SupabaseClient
+): Promise<boolean> {
+  const { data, error } = await supabase.rpc("get_is_excluded");
+  if (error) return true; // fail-closed
+  return Boolean(data);
 }
