@@ -254,6 +254,7 @@ export async function fetchPollsWithCreator(
 // query always returned an empty set (the root cause of Issue 3).
 // This RPC returns only poll_ids where user_id = auth.uid().
 
+// AFTER
 export async function fetchMyVotedPollIds(
   supabase: SupabaseClient
 ): Promise<Set<string>> {
@@ -262,9 +263,18 @@ export async function fetchMyVotedPollIds(
     console.error("fetchMyVotedPollIds error:", error);
     return new Set();
   }
-  // poll_id is bigint in the DB; Supabase JS returns it as number.
-  // Stringify so Set.has() matches string poll IDs used elsewhere.
-  return new Set((data ?? []).map((row: { poll_id: number }) => String(row.poll_id)));
+  return new Set(
+    (data ?? []).map((row: unknown) => {
+      // Supabase may return a bare primitive (195) or a shaped object
+      // ({poll_id: 195}) depending on the PostgreSQL function's RETURNS clause.
+      // Handle both and always produce a string so Set.has(String(poll.id))
+      // matches reliably.
+      if (row !== null && typeof row === "object" && "poll_id" in row) {
+        return String((row as { poll_id: number }).poll_id);
+      }
+      return String(row);
+    })
+  );
 }
 
 
