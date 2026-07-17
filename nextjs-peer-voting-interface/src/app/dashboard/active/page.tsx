@@ -79,16 +79,19 @@ export default function ActivePollsPage() {
     return () => clearTimeout(id);
   }, [loadData]);
 
-  async function handleVote(pollId: string, roll: string) {
-    const supabase = getSupabaseClient();
-    if (!supabase || !profile) return { error: "Not connected." };
-    const result = await submitSecretVote(supabase, pollId, profile.id, roll);
-    if (!result.error) {
-      setVotedIds((prev) => new Set(prev).add(pollId));
-      setCountsMap((prev) => ({ ...prev, [pollId]: (prev[pollId] || 0) + 1 }));
-    }
-    return result;
+// AFTER
+async function handleVote(pollId: string, roll: string) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !profile) return { error: "Not connected." };
+  const result = await submitSecretVote(supabase, pollId, profile.id, roll);
+  if (!result.error) {
+    // String() is explicit here so the Set's contents are always the same
+    // type as the String(poll.id) lookup in the render block.
+    setVotedIds((prev) => new Set(prev).add(String(pollId)));
+    setCountsMap((prev) => ({ ...prev, [pollId]: (prev[pollId] || 0) + 1 }));
   }
+  return result;
+}
 
   async function handleDelete(pollId: string) {
     const supabase = getSupabaseClient();
