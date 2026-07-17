@@ -260,3 +260,26 @@ export async function fetchIsExcluded(
   if (error) return true; // fail-closed
   return Boolean(data);
 }
+
+// Add this back to src/lib/pollService.ts
+// The archive page still needs this to determine which poll results to show/hide.
+// The active polls page no longer uses it (replaced by poll.has_voted from the RPC),
+// but that doesn't mean the function should be deleted globally.
+
+export async function fetchMyVotedPollIds(
+  supabase: SupabaseClient
+): Promise<Set<string>> {
+  const { data, error } = await supabase.rpc("get_my_voted_poll_ids");
+  if (error) {
+    console.error("fetchMyVotedPollIds error:", error);
+    return new Set();
+  }
+  return new Set(
+    (data ?? []).map((row: unknown) => {
+      if (row !== null && typeof row === "object" && "poll_id" in row) {
+        return String((row as { poll_id: number }).poll_id);
+      }
+      return String(row);
+    })
+  );
+}
