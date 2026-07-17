@@ -30,7 +30,11 @@ export default function ClosedPollsPage() {
       const allPolls = await fetchPollsWithCreator(supabase);
       // is_active = false covers both: manually archived AND naturally expired polls.
       // No more manual date arithmetic in JS — the DB computes this correctly.
-      const closedPolls = allPolls.filter((p) => !p.is_active);
+      // AFTER — only show polls that closed within the last 24 hours
+    const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+    const closedPolls = allPolls.filter(
+      (p) => !p.is_active && new Date(p.expires_at).getTime() > oneDayAgo
+    );
       setPolls(closedPolls);
     } catch {
       setError("Failed to load closed polls. Please check your Supabase configuration.");
