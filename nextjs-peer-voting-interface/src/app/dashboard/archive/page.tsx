@@ -2,13 +2,15 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { getSupabaseClient } from "@/lib/supabase/client";
-import { fetchMyVotedPollIds, fetchIsExcluded } from "@/lib/pollService";
+import { fetchIsExcluded } from "@/lib/pollService";
+// fetchMyVotedPollIds import is GONE — has_voted comes from the RPC directly
 import type { PollAnswerArchive } from "@/lib/types";
 
 type ArchiveRow = PollAnswerArchive & {
   question: string;
   expires_at: string;
   total_votes_cast: number;
+  has_voted: boolean;   // NEW: returned by get_poll_archive
 };
 
 const PAGE_SIZE = 10;
@@ -24,66 +26,60 @@ export default function ArchivePage() {
   // Derived from RPC calls — not from direct table queries
   const [isAdmin, setIsAdmin] = useState(false);
   const [isExcluded, setIsExcluded] = useState(false);
-  const [votedPolls, setVotedPolls] = useState<Set<string>>(new Set());
+  // votedPolls state is GONE — row.has_voted replaces it entirely
 
-const loadArchiveChunk = useCallback(async (pageIndex: number) => {
-  const supabase = getSupabaseClient();
-  if (!supabase) return;
+  const loadArchiveChunk = useCallback(async (pageIndex: number) => {
+    const supabase = getSupabaseClient();
+    if (!supabase) return;
 
-  if (pageIndex === 0) {
-    setLoading(true);
+    if (pageIndex === 0) {
+      setLoading(true);
 
-    const [excluded, voted] = await Promise.all([
-      fetchIsExcluded(supabase),
-      fetchMyVotedPollIds(supabase),
-    ]);
+      const [excluded] = await Promise.all([
+        fetchIsExcluded(supabase),
+      ]);
 
-    setIsExcluded(excluded);
-    setVotedPolls(voted);
+      setIsExcluded(excluded);
 
-    if (excluded) {
+      if (excluded) {
+        setLoading(false);
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const { data: profileData } = await supabase
+          .from("profiles")
+          .select("is_admin")
+          .eq("id", user.id)
+          .single();
+        setIsAdmin(profileData?.is_admin ?? false);
+      }
+    } else {
+      setLoadingMore(true);
+    }
+
+    setError(null);
+
+    try {
+      // get_poll_archive now returns has_voted per row — no second RPC needed.
+      const { data, error: fetchError } = await supabase.rpc("get_poll_archive", {
+        p_limit:  PAGE_SIZE,
+        p_offset: pageIndex * PAGE_SIZE,
+      });
+
+      if (fetchError) throw fetchError;
+
+      const archiveRows = (data ?? []) as ArchiveRow[];
+      setHasMore(archiveRows.length === PAGE_SIZE);
+      setRows((prev) => (pageIndex === 0 ? archiveRows : [...prev, ...archiveRows]));
+    } catch {
+      setError("Failed to load the archive.");
+    } finally {
       setLoading(false);
-      return;
+      setLoadingMore(false);
     }
-
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profileData } = await supabase
-        .from("profiles")
-        .select("is_admin")
-        .eq("id", user.id)
-        .single();
-      setIsAdmin(profileData?.is_admin ?? false);
-    }
-  } else {
-    setLoadingMore(true);
-  }
-
-  setError(null);
-
-  try {
-    // ── CHANGED: use RPC instead of direct view query ──────────────────
-    // get_poll_archive() is SECURITY DEFINER and enforces the exclusion
-    // gate internally. Direct SELECT on the view is now revoked, so this
-    // is the only valid read path for the authenticated role.
-    const { data, error: fetchError } = await supabase.rpc("get_poll_archive", {
-      p_limit:  PAGE_SIZE,
-      p_offset: pageIndex * PAGE_SIZE,
-    });
-    // ── END CHANGE ───────────────────────────────────────────────────────
-
-    if (fetchError) throw fetchError;
-
-    const archiveRows = (data ?? []) as ArchiveRow[];
-    setHasMore(archiveRows.length === PAGE_SIZE);
-    setRows((prev) => (pageIndex === 0 ? archiveRows : [...prev, ...archiveRows]));
-  } catch {
-    setError("Failed to load the archive.");
-  } finally {
-    setLoading(false);
-    setLoadingMore(false);
-  }
-}, []);
+  }, []);
 
   useEffect(() => {
     loadArchiveChunk(0);
@@ -95,7 +91,6 @@ const loadArchiveChunk = useCallback(async (pageIndex: number) => {
     void loadArchiveChunk(nextPage);
   };
 
-  // ── Exclusion wall: shown before any data is rendered ──────────────────
   if (!loading && isExcluded) {
     return (
       <div>
@@ -142,9 +137,9 @@ const loadArchiveChunk = useCallback(async (pageIndex: number) => {
       ) : (
         <div className="space-y-3">
           {rows.map((row) => {
-            // votedPolls is now populated via get_my_voted_poll_ids() RPC,
+            // has_voted is now populated by get_poll_archive() RPC,
             // so this correctly reflects the user's real vote history.
-            const canViewResults = isAdmin || votedPolls.has(String(row.poll_id));
+            const canViewResults = isAdmin || row.has_voted;
 
             return (
               <div key={row.poll_id} className="card-surface fade-in rounded-2xl p-5">
