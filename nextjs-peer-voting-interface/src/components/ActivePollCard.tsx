@@ -14,6 +14,7 @@ export default function ActivePollCard({
   hasVoted,
   isAdmin,
   ownRoll,
+  protectedRolls,
   onVote,
   onDelete,
   onUpdateExpiration,
@@ -26,6 +27,7 @@ export default function ActivePollCard({
   hasVoted: boolean;
   isAdmin: boolean;
   ownRoll: string | null;
+  protectedRolls: Set<string>;
   onVote: (pollId: string, roll: string) => Promise<{ error: string | null }>;
   onDelete: (pollId: string) => Promise<void>;
   onUpdateExpiration: (pollId: string, isoDate: string) => Promise<void>;
@@ -125,6 +127,7 @@ async function handleSubmit() {
             value={selectedRoll}
             onChange={setSelectedRoll}
             excludeRoll={ownRoll}
+            protectedRolls={protectedRolls}
           />
           {error && <p className="mt-2 text-xs text-[#f87171]">{error}</p>}
           <button
