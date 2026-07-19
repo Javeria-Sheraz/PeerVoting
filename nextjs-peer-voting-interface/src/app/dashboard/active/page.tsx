@@ -1,5 +1,8 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
+import { useAuth } from "@/context/AuthContext";
+import { getSupabaseClient } from "@/lib/supabase/client";
 import {
   fetchPollsWithCreator,
   submitSecretVote,
