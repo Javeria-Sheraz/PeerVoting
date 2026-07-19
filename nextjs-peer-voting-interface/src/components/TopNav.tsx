@@ -8,9 +8,10 @@ import { useAuth } from "@/context/AuthContext";
 import ResetPasswordModal from "@/components/ResetPasswordModal";
 
 const BASE_TABS = [
-  { href: "/dashboard/active", label: "Active Polls" },
-  { href: "/dashboard/closed", label: "Closed Polls" },
-  { href: "/dashboard/archive", label: "Answers Archive" },
+  { href: "/dashboard/active",      label: "Active Polls"     },
+  { href: "/dashboard/closed",      label: "Closed Polls"     },
+  { href: "/dashboard/archive",     label: "Answers Archive"  },
+  { href: "/dashboard/leaderboard", label: "Leaderboard"      },
 ];
 
 export default function TopNav() {
