@@ -52,3 +52,12 @@ export interface PollWithMeta extends Poll {
   creatorRoll?: string;
   hasVoted?: boolean;
 }
+
+export interface StudentRanking {
+  roll_number: string;
+  polls_created_count: number;
+  votes_cast_count: number;
+  voter_title: string | null;
+  creator_title: string | null;
+  status_title: string;
+}
