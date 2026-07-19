@@ -6,16 +6,19 @@ import type { WhitelistEntry } from "@/lib/types";
 export default function AdminWhitelistTable({
   entries,
   onToggleExclusion,
+  onToggleCanBeVotedFor,
   onAdd,
 }: {
   entries: WhitelistEntry[];
   onToggleExclusion: (id: string, next: boolean) => Promise<void>;
+  onToggleCanBeVotedFor: (id: string, next: boolean) => Promise<void>;
   onAdd: (rollNumber: string) => Promise<{ error: string | null }>;
 }) {
   const [newRoll, setNewRoll] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [togglingVoteId, setTogglingVoteId] = useState<string | null>(null);
 
   async function handleAdd(e: FormEvent) {
     e.preventDefault();
@@ -35,7 +38,9 @@ export default function AdminWhitelistTable({
   return (
     <div className="card-surface rounded-2xl p-5">
       <h2 className="mb-1 text-base font-semibold text-[#f5f5f5]">Whitelist Roster</h2>
-      <p className="mb-4 text-xs text-[#71717a]">Toggle exclusion to instantly ban a roll number from the app.</p>
+      <p className="mb-4 text-xs text-[#71717a]">
+        Toggle exclusion to instantly ban a roll number from the app. Toggle votable to hide a roll number from being targeted in polls.
+      </p>
 
       <form onSubmit={handleAdd} className="mb-4 flex flex-wrap gap-2">
         <input
@@ -61,6 +66,7 @@ export default function AdminWhitelistTable({
               <th className="px-3 py-2">Roll Number</th>
               <th className="px-3 py-2">Status</th>
               <th className="px-3 py-2 text-right">Excluded</th>
+              <th className="px-3 py-2 text-right">Votable</th>
             </tr>
           </thead>
           <tbody>
@@ -95,11 +101,31 @@ export default function AdminWhitelistTable({
                     />
                   </button>
                 </td>
+                <td className="px-3 py-2 text-right">
+                  <button
+                    disabled={togglingVoteId === entry.id}
+                    title={entry.can_be_voted_for ? "Click to hide from voting targets" : "Click to allow as voting target"}
+                    onClick={async () => {
+                      setTogglingVoteId(entry.id);
+                      await onToggleCanBeVotedFor(entry.id, !entry.can_be_voted_for);
+                      setTogglingVoteId(null);
+                    }}
+                    className={`relative h-6 w-11 rounded-full transition ${
+                      entry.can_be_voted_for ? "bg-[#10b981]" : "bg-[#3a3a3a]"
+                    } disabled:opacity-50`}
+                  >
+                    <span
+                      className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition ${
+                        entry.can_be_voted_for ? "left-5" : "left-0.5"
+                      }`}
+                    />
+                  </button>
+                </td>
               </tr>
             ))}
             {entries.length === 0 && (
               <tr>
-                <td colSpan={3} className="px-3 py-6 text-center text-xs text-[#71717a]">
+                <td colSpan={4} className="px-3 py-6 text-center text-xs text-[#71717a]">
                   No whitelist entries yet.
                 </td>
               </tr>
