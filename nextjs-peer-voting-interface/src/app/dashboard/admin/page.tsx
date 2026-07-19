@@ -11,10 +11,16 @@ import {
   addWhitelistEntry,
   fetchAllProfiles,
   setCanCreatePolls,
+  fetchPendingPollsForAdmin,
+  approvePendingPoll,
+  rejectPendingPoll,
+  type PendingPoll,
 } from "@/lib/pollService";
+import PendingPollsReview from "@/components/PendingPollsReview";
 import type { Profile, WhitelistEntry } from "@/lib/types";
 import AdminWhitelistTable from "@/components/AdminWhitelistTable";
 import AdminPermissionsTable from "@/components/AdminPermissionsTable";
+
 
 
 export default function AdminPage() {
@@ -24,6 +30,7 @@ export default function AdminPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [pendingPolls, setPendingPolls] = useState<PendingPoll[]>([]);
 
   useEffect(() => {
     if (!authLoading && profile && !profile.is_admin) {
@@ -37,9 +44,14 @@ export default function AdminPage() {
     setLoading(true);
     setError(null);
     try {
-      const [whitelistData, profilesData] = await Promise.all([fetchWhitelist(supabase), fetchAllProfiles(supabase)]);
-      setWhitelist(whitelistData);
-      setProfiles(profilesData);
+      const [whitelistData, profilesData, pendingData] = await Promise.all([
+        fetchWhitelist(supabase),
+        fetchAllProfiles(supabase),
+        fetchPendingPollsForAdmin(supabase),
+        ]);
+        setWhitelist(whitelistData);
+        setProfiles(profilesData);
+        setPendingPolls(pendingData);
     } catch {
       setError("Failed to load admin data. Please check your Supabase configuration.");
     } finally {
@@ -85,6 +97,20 @@ export default function AdminPage() {
     setProfiles((prev) => prev.map((p) => (p.id === id ? { ...p, can_create_polls: next } : p)));
   }
 
+  async function handleApprovePending(id: number) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
+  await approvePendingPoll(supabase, id);
+  setPendingPolls((prev) => prev.filter((p) => p.id !== id));
+}
+
+async function handleRejectPending(id: number) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
+  await rejectPendingPoll(supabase, id);
+  setPendingPolls((prev) => prev.filter((p) => p.id !== id));
+}
+
   if (!profile?.is_admin) return null;
 
   return (
@@ -115,6 +141,13 @@ export default function AdminPage() {
           />
           <AdminPermissionsTable profiles={profiles} onToggleCanCreate={handleToggleCanCreate} />
         </div>
+      <div className="mt-4 grid grid-cols-1 gap-4">
+  <PendingPollsReview
+    pending={pendingPolls}
+    onApprove={handleApprovePending}
+    onReject={handleRejectPending}
+  />
+</div>
       )}
     </div>
   );
