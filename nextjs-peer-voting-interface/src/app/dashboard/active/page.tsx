@@ -1,23 +1,23 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { useAuth } from "@/context/AuthContext";
-import { getSupabaseClient } from "@/lib/supabase/client";
 import {
   fetchPollsWithCreator,
   submitSecretVote,
   deletePollCascade,
   updatePollExpiration,
   createPoll,
+  createPendingPoll,
+  fetchMyPendingPoll,
   closePollAdmin,
   checkUserHasActivePoll,
   fetchTotalVoteCount,
   fetchProtectedRolls,
   type PollWithCreator,
+  type PendingPoll,
 } from "@/lib/pollService";
-// fetchMyVotedPollIds import is GONE — has_voted comes from the RPC directly
 import ActivePollCard from "@/components/ActivePollCard";
 import CreatePollModal from "@/components/CreatePollModal";
+import PendingPollCard from "@/components/PendingPollCard";
 
 export default function ActivePollsPage() {
   const { profile } = useAuth();
@@ -31,6 +31,7 @@ export default function ActivePollsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [protectedRolls, setProtectedRolls] = useState<Set<string>>(new Set());
+  const [myPendingPoll, setMyPendingPoll] = useState<PendingPoll | null>(null);
 
   const loadData = useCallback(async () => {
     const supabase = getSupabaseClient();
@@ -46,16 +47,17 @@ export default function ActivePollsPage() {
 
       // No fetchMyVotedPollIds call — has_voted is already on each poll object.
       // checkUserHasActivePoll is still needed for the "create poll" button gate.
-      const [activeStatus, protectedRollsData, ...voteCounts] = await Promise.all([
-        checkUserHasActivePoll(supabase, profile.id),
-        fetchProtectedRolls(supabase),
-        ...activePolls.map((poll) =>
-          fetchTotalVoteCount(supabase, poll.id).then((count) => ({
-            pollId: poll.id,
-            count,
-          }))
-        ),
-      ]);
+      const [activeStatus, protectedRollsData, pendingPoll, ...voteCounts] = await Promise.all([
+      checkUserHasActivePoll(supabase, profile.id),
+      fetchProtectedRolls(supabase),
+      fetchMyPendingPoll(supabase),
+      ...activePolls.map((poll) =>
+        fetchTotalVoteCount(supabase, poll.id).then((count) => ({
+          pollId: poll.id,
+          count,
+        }))
+      ),
+    ]);
 
       const newCountsMap = (voteCounts as { pollId: string; count: number }[]).reduce(
         (acc, { pollId, count }) => ({ ...acc, [pollId]: count }),
@@ -67,6 +69,8 @@ export default function ActivePollsPage() {
       setHasActivePoll(activeStatus as boolean);
       setProtectedRolls(protectedRollsData as Set<string>);
       setCountsMap(newCountsMap);
+      setMyPendingPoll(pendingPoll);
+
     } catch {
       setError("Failed to load active polls. Please check your Supabase configuration.");
     } finally {
@@ -134,6 +138,20 @@ export default function ActivePollsPage() {
     }
   }
 
+  async function handleCreateSecret(question: string, durationHours: number) {
+  const supabase = getSupabaseClient();
+  if (!supabase || !profile) return;
+  setCreating(true);
+  const { error: createError } = await createPendingPoll(supabase, profile.id, question, durationHours);
+  setCreating(false);
+  if (!createError) {
+    setShowCreate(false);
+    void loadData();
+  } else {
+    setError(createError);
+  }
+}
+
   const canCreate = profile?.can_create_polls || profile?.is_admin;
   const isButtonDisabled = hasActivePoll && !profile?.is_admin;
 
@@ -175,9 +193,9 @@ export default function ActivePollsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {myPendingPoll && <PendingPollCard poll={myPendingPoll} />}
           {polls.map((poll) => (
-            <ActivePollCard
-              key={poll.id}
+            <ActivePollCard key={poll.id}
               poll={poll}
               totalVotes={countsMap[poll.id] || 0}
               creatorRoll={poll.creator_roll}
@@ -196,7 +214,12 @@ export default function ActivePollsPage() {
       )}
 
       {showCreate && (
-        <CreatePollModal busy={creating} onCancel={() => setShowCreate(false)} onCreate={handleCreate} />
+        <CreatePollModal
+          busy={creating}
+          onCancel={() => setShowCreate(false)}
+          onCreate={handleCreate}
+          onCreateSecret={handleCreateSecret}
+        />
       )}
     </div>
   );
