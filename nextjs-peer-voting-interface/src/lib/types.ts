@@ -61,3 +61,10 @@ export interface StudentRanking {
   creator_title: string | null;
   status_title: string;
 }
+
+export interface WhitelistEntry {
+  id: string;
+  roll_number: string;
+  is_excluded: boolean;
+  can_be_voted_for: boolean;
+}
