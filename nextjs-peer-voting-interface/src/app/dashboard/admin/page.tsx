@@ -126,28 +126,32 @@ async function handleRejectPending(id: number) {
         </div>
       )}
 
-      {loading ? (
+     {loading ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="card-surface h-96 animate-pulse rounded-2xl" />
           <div className="card-surface h-96 animate-pulse rounded-2xl" />
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <AdminWhitelistTable
-            entries={whitelist}
-            onToggleExclusion={handleToggleExclusion}
-            onToggleCanBeVotedFor={handleToggleCanBeVotedFor}
-            onAdd={handleAddWhitelist}
-          />
-          <AdminPermissionsTable profiles={profiles} onToggleCanCreate={handleToggleCanCreate} />
-        </div>
-      <div className="mt-4 grid grid-cols-1 gap-4">
-  <PendingPollsReview
-    pending={pendingPolls}
-    onApprove={handleApprovePending}
-    onReject={handleRejectPending}
-  />
-</div>
+        <> {/* <-- INVISIBLE BOX START */}
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            <AdminWhitelistTable
+              entries={whitelist}
+              onToggleExclusion={handleToggleExclusion}
+              onToggleCanBeVotedFor={handleToggleCanBeVotedFor}
+              onAdd={handleAddWhitelist}
+            />
+            <AdminPermissionsTable profiles={profiles} onToggleCanCreate={handleToggleCanCreate} />
+          </div>
+
+          {/* NEW CODE GOES HERE! */}
+          <div className="mt-4 grid grid-cols-1 gap-4">
+            <PendingPollsReview
+              pending={pendingPolls}
+              onApprove={handleApprovePending}
+              onReject={handleRejectPending}
+            />
+          </div>
+        </> {/* <-- INVISIBLE BOX END */}
       )}
     </div>
   );
