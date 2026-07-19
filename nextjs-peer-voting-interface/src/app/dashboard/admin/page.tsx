@@ -7,6 +7,7 @@ import { getSupabaseClient } from "@/lib/supabase/client";
 import {
   fetchWhitelist,
   setWhitelistExclusion,
+  setCanBeVotedFor,
   addWhitelistEntry,
   fetchAllProfiles,
   setCanCreatePolls,
@@ -14,6 +15,7 @@ import {
 import type { Profile, WhitelistEntry } from "@/lib/types";
 import AdminWhitelistTable from "@/components/AdminWhitelistTable";
 import AdminPermissionsTable from "@/components/AdminPermissionsTable";
+
 
 export default function AdminPage() {
   const router = useRouter();
@@ -54,6 +56,13 @@ export default function AdminPage() {
     }
   }, [profile, loadData]);
 
+  async function handleToggleCanBeVotedFor(id: string, next: boolean) {
+  const supabase = getSupabaseClient();
+  if (!supabase) return;
+  await setCanBeVotedFor(supabase, id, next);
+  setWhitelist((prev) => prev.map((w) => (w.id === id ? { ...w, can_be_voted_for: next } : w)));
+}
+  
   async function handleToggleExclusion(id: string, next: boolean) {
     const supabase = getSupabaseClient();
     if (!supabase) return;
@@ -98,7 +107,12 @@ export default function AdminPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <AdminWhitelistTable entries={whitelist} onToggleExclusion={handleToggleExclusion} onAdd={handleAddWhitelist} />
+          <AdminWhitelistTable
+            entries={whitelist}
+            onToggleExclusion={handleToggleExclusion}
+            onToggleCanBeVotedFor={handleToggleCanBeVotedFor}
+            onAdd={handleAddWhitelist}
+          />
           <AdminPermissionsTable profiles={profiles} onToggleCanCreate={handleToggleCanCreate} />
         </div>
       )}
