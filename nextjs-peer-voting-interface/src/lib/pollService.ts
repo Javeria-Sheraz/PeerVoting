@@ -1,12 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { Poll, PollResult, PollAnswerArchive, Profile, WhitelistEntry } from "@/lib/types";
+import type { StudentRanking } from "@/lib/types";
 
-// ── NEW TYPE ──────────────────────────────────────────────────────────────────
-// Returned by get_polls_with_creator(). Superset of Poll — includes the
-// creator's roll number and a precomputed is_active flag from the DB.
-// Use this everywhere instead of Poll + a separate profiles lookup.
 
-// AFTER — add has_voted, remove nothing else
 export type PollWithCreator = {
   id: string;
   creator_id: string;
@@ -16,7 +12,7 @@ export type PollWithCreator = {
   is_archived: boolean;
   creator_roll: string;
   is_active: boolean;
-  has_voted: boolean;   // ← DB now computes this; no second RPC needed
+  has_voted: boolean;
 };
 
 export async function fetchProfilesByIds(supabase: SupabaseClient, ids: string[]): Promise<Map<string, Profile>> {
@@ -45,9 +41,7 @@ export async function fetchClosedPolls(supabase: SupabaseClient): Promise<Poll[]
   const { data, error } = await supabase
     .from("polls")
     .select("*")
-    // Brings back the check for EITHER manually archived polls OR naturally expired polls
     .or(`is_archived.eq.true,expires_at.lte.${now.toISOString()}`)
-    // AND ensures they are not older than 24 hours
     .gt("expires_at", oneDayAgo.toISOString())
     .order("expires_at", { ascending: false });
 
@@ -66,14 +60,12 @@ export async function submitSecretVote(
   userId: string,
   votedForRoll: string
 ): Promise<{ error: string | null }> {
-  // Record the vote securely. The database trigger will handle incrementing the count automatically.
-  // We pass the selection 'votedForRoll' in the payload so the database can catch it.
   const { error: trackerError } = await supabase
     .from("vote_trackers")
     .insert({ 
       poll_id: pollId, 
       user_id: userId,
-      voted_for_roll_temp: votedForRoll // Add a temporary column to send the choice safely
+      voted_for_roll_temp: votedForRoll
     });
 
   if (trackerError) {
@@ -98,15 +90,14 @@ export async function fetchPollResults(supabase: SupabaseClient, pollId: string)
 
 export async function fetchArchive(supabase: SupabaseClient, page: number = 0) {
   const pageSize = 10;
-  // Calculate the range for pagination (0-9 for page 0, 10-19 for page 1, etc.)
   const from = page * pageSize;
   const to = from + pageSize - 1;
 
   const { data, error } = await supabase
     .from("poll_answers_archive")
-    .select("*") // No join needed anymore!
+    .select("*") 
     .order("id", { ascending: false })
-    .range(from, to); // This implements your 10-at-a-time pagination
+    .range(from, to); 
 
   if (error) throw error;
   return data ?? [];
@@ -128,7 +119,6 @@ export async function createPoll(
 }
 
 export async function deletePollCascade(supabase: SupabaseClient, pollId: string): Promise<{ error: string | null }> {
-  // The database foreign keys handle cleaning up trackers, results, and archives automatically!
   const { error } = await supabase.from("polls").delete().eq("id", pollId);
   return { error: error?.message ?? null };
 }
@@ -197,7 +187,7 @@ export async function closePollAdmin(
     .from("polls")
     .update({ 
       is_archived: true,
-      expires_at: new Date().toISOString() // Automatically sets the time to exactly NOW
+      expires_at: new Date().toISOString()
     })
     .eq("id", pollId);
     
@@ -234,13 +224,6 @@ export async function fetchTotalVoteCount(supabase: SupabaseClient, pollId: stri
   return data || 0;
 }
 
-
-// ── REPLACEMENT FOR fetchActivePolls + fetchClosedPolls + fetchProfilesByIds ──
-// Single RPC call returns ALL polls (active + closed) with creator_roll
-// already joined inside the SECURITY DEFINER function on the DB side.
-// The frontend filters by is_active to split the two views.
-// Excluded users receive zero rows because the gate is inside the function.
-
 export async function fetchPollsWithCreator(
   supabase: SupabaseClient
 ): Promise<PollWithCreator[]> {
@@ -248,23 +231,14 @@ export async function fetchPollsWithCreator(
   if (error) throw error;
   return (data ?? []) as PollWithCreator[];
 }
-// ── EXCLUSION STATUS CHECK ────────────────────────────────────────────────────
-// Lets the frontend show an explicit "access denied" UI rather than
-// silently showing an empty archive after RLS blocks the query.
-// Fails closed (returns true = excluded) on any error.
 
 export async function fetchIsExcluded(
   supabase: SupabaseClient
 ): Promise<boolean> {
   const { data, error } = await supabase.rpc("get_is_excluded");
-  if (error) return true; // fail-closed
+  if (error) return true; 
   return Boolean(data);
 }
-
-// Add this back to src/lib/pollService.ts
-// The archive page still needs this to determine which poll results to show/hide.
-// The active polls page no longer uses it (replaced by poll.has_voted from the RPC),
-// but that doesn't mean the function should be deleted globally.
 
 export async function fetchMyVotedPollIds(
   supabase: SupabaseClient
@@ -282,4 +256,23 @@ export async function fetchMyVotedPollIds(
       return String(row);
     })
   );
+}
+
+type LeaderboardRow = StudentRanking & { last_run_at: string };
+export async function fetchLeaderboardData(
+  supabase: SupabaseClient
+): Promise<{ rankings: StudentRanking[]; lastRunAt: string }> {
+  const { data, error } = await supabase.rpc("get_leaderboard_data");
+  if (error) throw error;
+  const rows = (data ?? []) as LeaderboardRow[];
+  const lastRunAt = rows[0]?.last_run_at ?? new Date().toISOString();
+  const rankings: StudentRanking[] = rows.map((row) => ({
+    roll_number: row.roll_number,
+    polls_created_count: row.polls_created_count,
+    votes_cast_count: row.votes_cast_count,
+    voter_title: row.voter_title,
+    creator_title: row.creator_title,
+    status_title: row.status_title,
+  }));
+  return { rankings, lastRunAt };
 }
