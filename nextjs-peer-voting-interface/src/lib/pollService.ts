@@ -276,3 +276,25 @@ export async function fetchLeaderboardData(
   }));
   return { rankings, lastRunAt };
 }
+
+export async function fetchProtectedRolls(supabase: SupabaseClient): Promise<Set<string>> {
+  const { data, error } = await supabase.rpc("get_protected_rolls");
+  if (error) {
+    console.error("fetchProtectedRolls error:", error);
+    return new Set();
+  }
+  return new Set(
+    (data ?? []).map((row: unknown) =>
+      typeof row === "string" ? row : String((row as { get_protected_rolls: string }).get_protected_rolls)
+    )
+  );
+}
+
+export async function setCanBeVotedFor(
+  supabase: SupabaseClient,
+  id: string,
+  canBeVoted: boolean
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.from("whitelist").update({ can_be_voted_for: canBeVoted }).eq("id", id);
+  return { error: error?.message ?? null };
+}
