@@ -298,3 +298,64 @@ export async function setCanBeVotedFor(
   const { error } = await supabase.from("whitelist").update({ can_be_voted_for: canBeVoted }).eq("id", id);
   return { error: error?.message ?? null };
 }
+
+export interface PendingPoll {
+  id: number;
+  question: string;
+  duration_hours: number;
+  created_at: string;
+}
+
+export async function createPendingPoll(
+  supabase: SupabaseClient,
+  creatorId: string,
+  question: string,
+  durationHours: number
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.from("pending_polls").insert({
+    creator_id: creatorId,
+    question,
+    duration_hours: durationHours,
+  });
+  return { error: error?.message ?? null };
+}
+
+export async function fetchMyPendingPoll(
+  supabase: SupabaseClient
+): Promise<PendingPoll | null> {
+  const { data, error } = await supabase.rpc("get_my_pending_poll");
+  if (error) {
+    console.error("fetchMyPendingPoll error:", error);
+    return null;
+  }
+  const rows = (data ?? []) as PendingPoll[];
+  return rows[0] ?? null;
+}
+
+export async function fetchPendingPollsForAdmin(
+  supabase: SupabaseClient
+): Promise<PendingPoll[]> {
+  const { data, error } = await supabase.rpc("get_pending_polls_for_admin");
+  if (error) throw error;
+  return (data ?? []) as PendingPoll[];
+}
+
+export async function approvePendingPoll(
+  supabase: SupabaseClient,
+  pendingId: number
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc("approve_pending_poll", {
+    p_pending_id: pendingId,
+  });
+  return { error: error?.message ?? null };
+}
+
+export async function rejectPendingPoll(
+  supabase: SupabaseClient,
+  pendingId: number
+): Promise<{ error: string | null }> {
+  const { error } = await supabase.rpc("reject_pending_poll", {
+    p_pending_id: pendingId,
+  });
+  return { error: error?.message ?? null };
+}
