@@ -132,7 +132,7 @@ async function handleRejectPending(id: number) {
           <div className="card-surface h-96 animate-pulse rounded-2xl" />
         </div>
       ) : (
-        <> {/* <-- INVISIBLE BOX START */}
+        <> 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
             <AdminWhitelistTable
               entries={whitelist}
@@ -142,8 +142,6 @@ async function handleRejectPending(id: number) {
             />
             <AdminPermissionsTable profiles={profiles} onToggleCanCreate={handleToggleCanCreate} />
           </div>
-
-          {/* NEW CODE GOES HERE! */}
           <div className="mt-4 grid grid-cols-1 gap-4">
             <PendingPollsReview
               pending={pendingPolls}
@@ -151,7 +149,7 @@ async function handleRejectPending(id: number) {
               onReject={handleRejectPending}
             />
           </div>
-        </> {/* <-- INVISIBLE BOX END */}
+        </> 
       )}
     </div>
   );
