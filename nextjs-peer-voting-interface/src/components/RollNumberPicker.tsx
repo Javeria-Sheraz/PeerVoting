@@ -7,18 +7,25 @@ interface RollNumberPickerProps {
   value: string | null;
   onChange: (roll: string) => void;
   excludeRoll?: string | null;
+  protectedRolls?: Set<string>;
   disabled?: boolean;
 }
 
-/** Compact scrollable grid of 40 minimalist chip buttons representing the class roster. */
-export default function RollNumberPicker({ value, onChange, excludeRoll, disabled }: RollNumberPickerProps) {
+/** Compact scrollable grid of chip buttons representing the class roster. */
+export default function RollNumberPicker({
+  value,
+  onChange,
+  excludeRoll,
+  protectedRolls,
+  disabled,
+}: RollNumberPickerProps) {
   const [search, setSearch] = useState("");
 
   const roster = useMemo(() => {
-    return CLASS_ROSTER.filter((roll) => roll !== excludeRoll).filter((roll) =>
-      roll.toLowerCase().includes(search.trim().toLowerCase())
-    );
-  }, [search, excludeRoll]);
+    return CLASS_ROSTER.filter((roll) => roll !== excludeRoll)
+      .filter((roll) => !protectedRolls?.has(roll))
+      .filter((roll) => roll.toLowerCase().includes(search.trim().toLowerCase()));
+  }, [search, excludeRoll, protectedRolls]);
 
   return (
     <div className="w-full">
