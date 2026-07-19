@@ -12,6 +12,7 @@ import {
   closePollAdmin,
   checkUserHasActivePoll,
   fetchTotalVoteCount,
+  fetchProtectedRolls,
   type PollWithCreator,
 } from "@/lib/pollService";
 // fetchMyVotedPollIds import is GONE — has_voted comes from the RPC directly
@@ -29,6 +30,7 @@ export default function ActivePollsPage() {
   const [error, setError] = useState<string | null>(null);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [protectedRolls, setProtectedRolls] = useState<Set<string>>(new Set());
 
   const loadData = useCallback(async () => {
     const supabase = getSupabaseClient();
@@ -44,8 +46,9 @@ export default function ActivePollsPage() {
 
       // No fetchMyVotedPollIds call — has_voted is already on each poll object.
       // checkUserHasActivePoll is still needed for the "create poll" button gate.
-      const [activeStatus, ...voteCounts] = await Promise.all([
+      const [activeStatus, protectedRollsData, ...voteCounts] = await Promise.all([
         checkUserHasActivePoll(supabase, profile.id),
+        fetchProtectedRolls(supabase),
         ...activePolls.map((poll) =>
           fetchTotalVoteCount(supabase, poll.id).then((count) => ({
             pollId: poll.id,
@@ -62,6 +65,7 @@ export default function ActivePollsPage() {
       setPolls(activePolls);
       // No setVotedIds — has_voted is on each poll already
       setHasActivePoll(activeStatus as boolean);
+      setProtectedRolls(protectedRollsData as Set<string>);
       setCountsMap(newCountsMap);
     } catch {
       setError("Failed to load active polls. Please check your Supabase configuration.");
@@ -177,9 +181,10 @@ export default function ActivePollsPage() {
               poll={poll}
               totalVotes={countsMap[poll.id] || 0}
               creatorRoll={poll.creator_roll}
-              hasVoted={poll.has_voted}  // ← direct from poll object, no Set lookup
+              hasVoted={poll.has_voted}
               isAdmin={Boolean(profile?.is_admin)}
               ownRoll={profile?.roll_number ?? null}
+              protectedRolls={protectedRolls}
               onVote={handleVote}
               onDelete={handleDelete}
               onUpdateExpiration={handleUpdateExpiration}
