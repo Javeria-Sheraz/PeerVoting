@@ -60,6 +60,7 @@ export interface StudentRanking {
   voter_title: string | null;
   creator_title: string | null;
   status_title: string;
+  creating_streak: number;
 }
 
 export interface WhitelistEntry {
