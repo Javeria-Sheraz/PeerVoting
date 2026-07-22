@@ -30,10 +30,14 @@ export default function ClosedPollCard({
   const totalVotes = sorted.reduce((sum, r) => sum + r.vote_count, 0);
   const maxVotes = sorted[0]?.vote_count ?? 0;
 
-  const rest = CLASS_ROSTER.map((roll) => {
+  const noneResult = sorted.find((r) => r.voted_for_roll === "NONE");
+  const rest = [
+  ...CLASS_ROSTER.map((roll) => {
     const found = sorted.find((r) => r.voted_for_roll === roll);
     return { roll, votes: found?.vote_count ?? 0 };
-  }).sort((a, b) => b.votes - a.votes);
+  }),
+  ...(noneResult ? [{ roll: "NONE", votes: noneResult.vote_count }] : []),
+].sort((a, b) => b.votes - a.votes);
 
   useEffect(() => {
     if (results === undefined) {
