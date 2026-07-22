@@ -126,7 +126,6 @@ async function handleSubmit() {
           <RollNumberPicker
             value={selectedRoll}
             onChange={setSelectedRoll}
-            excludeRoll={ownRoll}
             protectedRolls={protectedRolls}
           />
           {error && <p className="mt-2 text-xs text-[#f87171]">{error}</p>}
