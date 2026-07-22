@@ -130,11 +130,12 @@ export default function LeaderboardPage() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
               <thead className="bg-[#1a1a1a] text-xs uppercase tracking-wide text-[#71717a]">
-                <tr>
+               <tr>
                   <th className="w-10 px-4 py-3">#</th>
                   <th className="px-4 py-3">Roll</th>
                   <th className="px-4 py-3 text-right">Votes Cast</th>
                   <th className="px-4 py-3 text-right">Polls Created</th>
+                  <th className="px-4 py-3 text-right">Streak</th>
                   <th className="px-4 py-3">Voter Title</th>
                   <th className="px-4 py-3">Creator Title</th>
                   <th className="px-4 py-3">Status</th>
@@ -151,7 +152,7 @@ export default function LeaderboardPage() {
                       }`}
                     >
                       <td className="px-4 py-3 text-xs text-[#71717a]">{idx + 1}</td>
-
+                    
                       <td className="px-4 py-3 font-semibold text-[#d4d4d8]">
                         {row.roll_number.replace("2024mc", "#")}
                         {isOwn && (
@@ -160,15 +161,25 @@ export default function LeaderboardPage() {
                           </span>
                         )}
                       </td>
-
+                    
                       <td className="px-4 py-3 text-right text-[#d4d4d8]">
                         {row.votes_cast_count}
                       </td>
-
+                    
                       <td className="px-4 py-3 text-right text-[#d4d4d8]">
                         {row.polls_created_count}
                       </td>
-
+                    
+                      <td className="px-4 py-3 text-right">
+                        {row.creating_streak > 1 ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-[#f59e0b]/15 px-2 py-0.5 text-xs font-semibold text-[#f59e0b]">
+                            🔥 {row.creating_streak}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-[#3a3a3a]">{row.creating_streak || "—"}</span>
+                        )}
+                      </td>
+                    
                       <td className="px-4 py-3">
                         <TitleCell title={row.voter_title}   colorMap={VOTER_COLOR}   />
                       </td>
