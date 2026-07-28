@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CalendarClock, CircleStop, Trash2, LockKeyhole } from "lucide-react";
 import type { Poll } from "@/lib/types";
 import CountdownTimer from "@/components/CountdownTimer";
 import RollNumberPicker from "@/components/RollNumberPicker";
@@ -36,38 +37,36 @@ export default function ActivePollCard({
 }) {
   const [selectedRoll, setSelectedRoll] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [voted, setVoted] = useState(hasVoted);
   const [error, setError] = useState<string | null>(null);
   const [showEdit, setShowEdit] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [busyAction, setBusyAction] = useState(false);
 
-async function handleSubmit() {
-  if (!selectedRoll) {
-    setError("Select a roll number first.");
-    return;
+  async function handleSubmit() {
+    if (!selectedRoll) {
+      setError("Pick someone first.");
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    const { error: voteError } = await onVote(poll.id, selectedRoll);
+    setSubmitting(false);
+    if (voteError) setError(voteError);
+    // On success the parent updates votedIds, which re-renders this
+    // component with hasVoted=true. Deliberately no local setVoted.
   }
-  setSubmitting(true);
-  setError(null);
-  const { error: voteError } = await onVote(poll.id, selectedRoll);
-  setSubmitting(false);
-  if (voteError) {
-    setError(voteError);
-  }
-  // No setVoted(true) — the parent updates votedIds in its own state,
-  // which causes a re-render of this component with hasVoted=true.
-}
 
   return (
-    <div className="card-surface fade-in relative flex flex-col rounded-2xl p-5">
+    <div className="card-surface card-lift fade-in relative flex flex-col rounded-2xl p-5">
       {isAdmin && (
         <div className="absolute right-3 top-3 flex gap-1.5">
           <button
             onClick={() => setShowEdit(true)}
-            title="Edit Expiration"
-            className="rounded-lg border border-[#2e2e2e] bg-[#1a1a1a] p-1.5 text-[#a5b4fc] hover:border-[#4f46e5]"
+            aria-label="Edit expiry time"
+            title="Edit expiry time"
+            className="btn-ghost p-1.5 text-[var(--accent-text)]"
           >
-            📅
+            <CalendarClock aria-hidden="true" className="h-4 w-4" />
           </button>
           <button
             onClick={async () => {
@@ -75,35 +74,37 @@ async function handleSubmit() {
               await onClose(poll.id);
               setBusyAction(false);
             }}
-            title="Instant Close"
-            className="rounded-lg border border-[#3f1d1d] bg-[#1a1a1a] p-1.5 text-[#fbbf24] hover:border-[#f59e0b]"
+            disabled={busyAction}
+            aria-label="Close poll now"
+            title="Close poll now"
+            className="btn-ghost p-1.5 text-[var(--warning)] hover:border-[var(--warning)]"
           >
-            🛑
+            <CircleStop aria-hidden="true" className="h-4 w-4" />
           </button>
           <button
             onClick={() => setShowDelete(true)}
-            title="Delete Poll"
-            className="rounded-lg border border-[#3f1d1d] bg-[#1a1a1a] p-1.5 text-[#f87171] hover:border-[#ef4444]"
+            aria-label="Delete poll"
+            title="Delete poll"
+            className="btn-ghost p-1.5 text-[var(--danger)] hover:border-[var(--danger)]"
           >
-            🗑️
+            <Trash2 aria-hidden="true" className="h-4 w-4" />
           </button>
         </div>
       )}
 
-      {/* Structured to avoid button overlap using pr-16 */}
-      <div className="mb-3 pr-16">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-xs font-medium text-[#71717a]">Created by:</span>
-          <span className="rounded-full bg-[#4f46e5]/15 px-2 py-0.5 text-xs font-semibold text-[#a5b4fc]">
-            {creatorRoll}
+      <div className="mb-3 pr-24">
+        <div className="mb-1 flex items-center gap-2">
+          <span className="text-xs text-[var(--text-muted)]">Created by</span>
+          <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-medium text-[var(--accent-text)]">
+            {creatorRoll.replace("2024mc", "#")}
           </span>
         </div>
-        <div className="text-xs font-medium text-[#a1a1aa]">
-          {totalVotes} total votes cast
+        <div className="text-xs text-[var(--text-secondary)]">
+          {totalVotes} total {totalVotes === 1 ? "vote" : "votes"} cast
         </div>
       </div>
 
-      <h3 className="mb-3 text-base font-semibold leading-snug text-[#f5f5f5]">
+      <h3 className="mb-3 text-base font-medium leading-snug text-[var(--text-primary)]">
         {poll.question}
       </h3>
 
@@ -111,31 +112,48 @@ async function handleSubmit() {
         <CountdownTimer expiresAt={poll.expires_at} onExpire={onExpire} />
       </div>
 
-{hasVoted ? (
-  <div className="flex flex-1 flex-col items-center justify-center rounded-xl border border-[#1a2e2a] bg-[#10231d]/40 py-8 text-center">
-    <span className="mb-1 text-2xl">🔒</span>
-    <p className="text-sm font-medium text-[#34d399]">
-      Your secret vote was recorded
-    </p>
-    <p className="mt-1 text-xs text-[#71717a]">
-      Results stay hidden until the poll closes.
-    </p>
-  </div>
-) : (
+      {hasVoted ? (
+        <div className="pop-in flex flex-1 flex-col items-center justify-center rounded-xl border border-[var(--success)]/25 bg-[var(--success-soft)] py-8 text-center">
+          <LockKeyhole
+            aria-hidden="true"
+            className="mb-2 h-6 w-6 text-[var(--success)]"
+          />
+          <p className="text-sm font-medium text-[var(--success)]">
+            Your secret vote was recorded
+          </p>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">
+            Results unlock when the poll closes.
+          </p>
+        </div>
+      ) : (
         <div>
           <RollNumberPicker
             value={selectedRoll}
-            onChange={setSelectedRoll}
+            onChange={(r) => {
+              setSelectedRoll(r);
+              setError(null);
+            }}
             protectedRolls={protectedRolls}
+            disabled={submitting}
           />
-          {error && <p className="mt-2 text-xs text-[#f87171]">{error}</p>}
+
+          {error && (
+            <p role="alert" className="mt-2 text-xs text-[var(--danger)]">
+              {error}
+            </p>
+          )}
+
           <button
             onClick={handleSubmit}
             disabled={submitting || !selectedRoll}
-            className="mt-4 w-full rounded-lg bg-[#4f46e5] py-2.5 text-sm font-semibold text-white transition hover:bg-[#4338ca] disabled:cursor-not-allowed disabled:opacity-50"
+            className="btn-primary mt-4 w-full py-2.5 text-sm"
           >
-            {submitting ? "Submitting..." : "Submit Secret Vote"}
+            {submitting ? "Submitting..." : "Submit secret vote"}
           </button>
+
+          <p className="mt-2 text-center text-[11px] text-[var(--text-faint)]">
+            Your choice is counted then erased. It can't be traced back to you.
+          </p>
         </div>
       )}
 
@@ -155,8 +173,8 @@ async function handleSubmit() {
 
       {showDelete && (
         <ConfirmModal
-          title="Delete Poll"
-          message="This will permanently delete the poll and all associated votes and results. This action cannot be undone."
+          title="Delete poll"
+          message="This permanently deletes the poll and all associated votes and results. It cannot be undone."
           confirmLabel="Delete"
           danger
           busy={busyAction}

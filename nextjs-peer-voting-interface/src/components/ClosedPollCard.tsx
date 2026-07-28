@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Trash2, Lock, ChevronDown, ChevronUp } from "lucide-react";
 import type { Poll, PollResult } from "@/lib/types";
 import Podium from "@/components/Podium";
+import ResultsBreakdown from "@/components/ResultsBreakdown";
 import ConfirmModal from "@/components/ConfirmModal";
-import { CLASS_ROSTER } from "@/lib/constants";
 
 export default function ClosedPollCard({
   poll,
@@ -26,18 +27,10 @@ export default function ClosedPollCard({
   const [busy, setBusy] = useState(false);
 
   const sorted = [...(results ?? [])].sort((a, b) => b.vote_count - a.vote_count);
-  const top3 = sorted.slice(0, 3).map((r) => ({ roll: r.voted_for_roll, votes: r.vote_count }));
+  const top3 = sorted
+    .slice(0, 3)
+    .map((r) => ({ roll: r.voted_for_roll, votes: r.vote_count }));
   const totalVotes = sorted.reduce((sum, r) => sum + r.vote_count, 0);
-  const maxVotes = sorted[0]?.vote_count ?? 0;
-
-  const noneResult = sorted.find((r) => r.voted_for_roll === "NONE");
-  const rest = [
-  ...CLASS_ROSTER.map((roll) => {
-    const found = sorted.find((r) => r.voted_for_roll === roll);
-    return { roll, votes: found?.vote_count ?? 0 };
-  }),
-  ...(noneResult ? [{ roll: "NONE", votes: noneResult.vote_count }] : []),
-].sort((a, b) => b.votes - a.votes);
 
   useEffect(() => {
     if (results === undefined) {
@@ -46,7 +39,8 @@ export default function ClosedPollCard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [poll.id]);
 
-  // Magical Deduction: If you aren't an admin, and the DB gave you an empty array, you didn't vote!
+  // If a non-admin gets an empty array back, RLS withheld the rows —
+  // which means they did not vote before the poll closed.
   const isResultsHidden = !isAdmin && results !== undefined && results.length === 0;
 
   return (
@@ -54,73 +48,79 @@ export default function ClosedPollCard({
       {isAdmin && (
         <button
           onClick={() => setShowDelete(true)}
-          title="Delete Poll"
-          className="absolute right-3 top-3 rounded-lg border border-[#3f1d1d] bg-[#1a1a1a] p-1.5 text-[#f87171] hover:border-[#ef4444]"
+          aria-label="Delete poll"
+          title="Delete poll"
+          className="btn-ghost absolute right-3 top-3 p-1.5 text-[var(--danger)] hover:border-[var(--danger)]"
         >
-          🗑️
+          <Trash2 aria-hidden="true" className="h-4 w-4" />
         </button>
       )}
 
       <div className="mb-3 flex items-center gap-2 pr-10">
-        <span className="text-xs font-medium text-[#71717a]">Created by:</span>
-        <span className="rounded-full bg-[#4f46e5]/15 px-2 py-0.5 text-xs font-semibold text-[#a5b4fc]">
-          {creatorRoll}
+        <span className="text-xs text-[var(--text-muted)]">Created by</span>
+        <span className="rounded-full bg-[var(--accent-soft)] px-2 py-0.5 text-xs font-medium text-[var(--accent-text)]">
+          {creatorRoll.replace("2024mc", "#")}
         </span>
-        <span className="ml-auto rounded-full bg-[#2a2a2a] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#a1a1aa]">
+        <span className="ml-auto rounded-full bg-[var(--bg-elevated-2)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--text-secondary)]">
           Closed
         </span>
       </div>
 
-      <h3 className="mb-2 text-base font-semibold leading-snug text-[#f5f5f5]">{poll.question}</h3>
-      <p className="mb-3 text-xs text-[#71717a]">Ended {new Date(poll.expires_at).toLocaleString()}</p>
+      <h3 className="mb-2 text-base font-medium leading-snug text-[var(--text-primary)]">
+        {poll.question}
+      </h3>
+      <p className="mb-3 text-xs text-[var(--text-muted)]">
+        Ended {new Date(poll.expires_at).toLocaleString()}
+      </p>
 
       {results === undefined ? (
-        <div className="flex items-center justify-center py-8">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#4f46e5] border-t-transparent" />
+        <div className="space-y-2 py-4" aria-busy="true" aria-label="Loading results">
+          <div className="skeleton h-28 w-full" />
+          <div className="skeleton h-3 w-1/3" />
         </div>
       ) : isResultsHidden ? (
-        <div className="my-4 flex flex-col items-center justify-center rounded-xl border border-[#2e2e2e] bg-[#1a1a1a]/50 py-8 text-center">
-          <span className="mb-2 text-2xl opacity-80">🔒</span>
-          <p className="text-sm font-semibold text-[#f5f5f5]">Results Hidden</p>
-          <p className="mt-1 px-4 text-xs text-[#71717a]">
-            You did not participate in this poll before it closed.
+        <div className="my-4 flex flex-col items-center justify-center rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-inset)] py-8 text-center">
+          <Lock aria-hidden="true" className="mb-2 h-6 w-6 text-[var(--text-muted)]" />
+          <p className="text-sm font-medium text-[var(--text-primary)]">Results hidden</p>
+          <p className="mt-1 px-4 text-xs text-[var(--text-muted)]">
+            You did not vote in this poll before it closed.
           </p>
         </div>
       ) : (
         <>
           <Podium top3={top3} />
-          <p className="mt-2 text-center text-xs text-[#71717a]">{totalVotes} total votes cast</p>
+          <p className="mt-2 text-center text-xs text-[var(--text-muted)]">
+            {totalVotes} total {totalVotes === 1 ? "vote" : "votes"} cast
+          </p>
 
           <button
             onClick={() => setExpanded((v) => !v)}
-            className="mt-4 w-full rounded-lg border border-[#2e2e2e] py-2 text-xs font-medium text-[#a1a1aa] hover:bg-[#242424]"
+            aria-expanded={expanded}
+            className="btn-ghost mt-4 flex w-full items-center justify-center gap-1.5 py-2 text-xs"
           >
-            {expanded ? "Hide All Results ▲" : "Show All Results ▼"}
+            {expanded ? (
+              <>
+                Hide full breakdown
+                <ChevronUp aria-hidden="true" className="h-3.5 w-3.5" />
+              </>
+            ) : (
+              <>
+                Show full breakdown
+                <ChevronDown aria-hidden="true" className="h-3.5 w-3.5" />
+              </>
+            )}
           </button>
 
           {expanded && (
-            <div className="fade-in mt-3 space-y-2">
-              {rest.map(({ roll, votes }) => (
-                <div key={roll} className="flex items-center gap-2 text-xs">
-                  <span className="w-14 shrink-0 font-medium text-[#d4d4d8]">{roll.replace("2024mc", "#")}</span>
-                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-[#161616]">
-                    <div
-                      className="h-full rounded-full bg-[#4f46e5]"
-                      style={{ width: maxVotes ? `${(votes / maxVotes) * 100}%` : "0%" }}
-                    />
-                  </div>
-                  <span className="w-6 shrink-0 text-right text-[#71717a]">{votes}</span>
-                </div>
-              ))}
-            </div>
+            <ResultsBreakdown results={sorted} totalVotes={totalVotes} />
           )}
         </>
       )}
 
       {showDelete && (
         <ConfirmModal
-          title="Delete Poll"
-          message="This will permanently delete the poll and all associated votes and results."
+          title="Delete poll"
+          message="This permanently deletes the poll and all associated votes and results."
           confirmLabel="Delete"
           danger
           busy={busy}

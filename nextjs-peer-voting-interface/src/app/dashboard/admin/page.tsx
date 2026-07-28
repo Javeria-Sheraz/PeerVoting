@@ -20,6 +20,7 @@ import PendingPollsReview from "@/components/PendingPollsReview";
 import type { Profile, WhitelistEntry } from "@/lib/types";
 import AdminWhitelistTable from "@/components/AdminWhitelistTable";
 import AdminPermissionsTable from "@/components/AdminPermissionsTable";
+import SecurityPanel from "@/components/SecurityPanel";
 
 
 
@@ -149,7 +150,10 @@ async function handleRejectPending(id: number) {
               onReject={handleRejectPending}
             />
           </div>
-        </> 
+          <div className="mt-8">
+            <SecurityPanel />
+          </div>
+        </>
       )}
     </div>
   );
