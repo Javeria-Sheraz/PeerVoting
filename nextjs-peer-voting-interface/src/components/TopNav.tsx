@@ -3,15 +3,17 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { KeyRound, LogOut, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import ResetPasswordModal from "@/components/ResetPasswordModal";
 
 const BASE_TABS = [
-  { href: "/dashboard/active",      label: "Active Polls"     },
-  { href: "/dashboard/closed",      label: "Closed Polls"     },
-  { href: "/dashboard/archive",     label: "Answers Archive"  },
-  { href: "/dashboard/leaderboard", label: "Leaderboard"      },
+  { href: "/dashboard/active", label: "Active" },
+  { href: "/dashboard/closed", label: "Closed" },
+  { href: "/dashboard/archive", label: "Archive" },
+  { href: "/dashboard/leaderboard", label: "Leaderboard" },
+  { href: "/dashboard/about", label: "About" },
 ];
 
 export default function TopNav() {
@@ -19,33 +21,69 @@ export default function TopNav() {
   const { profile, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
-  const tabs = profile?.is_admin ? [...BASE_TABS, { href: "/dashboard/admin", label: "Admin Panel" }] : BASE_TABS;
+  const tabs = profile?.is_admin
+    ? [...BASE_TABS, { href: "/dashboard/admin", label: "Admin" }]
+    : BASE_TABS;
+
+  // Close the account menu on outside click or Escape.
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setMenuOpen(false);
+    }
+    document.addEventListener("mousedown", onClick);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("mousedown", onClick);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [menuOpen]);
+
+  const shortRoll = profile?.roll_number?.replace("2024mc", "#") ?? "?";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[#2e2e2e] bg-[#121212]/95 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-2 py-3 sm:gap-4 sm:px-6">
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+    <header className="sticky top-0 z-40 border-b border-[var(--border-subtle)] bg-[var(--bg-base)]/90 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-2.5 sm:gap-4 sm:px-6">
+        <Link
+          href="/dashboard/active"
+          className="flex shrink-0 items-center gap-2"
+          aria-label="PeerVote home"
+        >
           <Image
             src="/logo.png"
-            alt="PeerVote Logo"
-            width={100}
-            height={100}
-            className="rounded-lg shrink-0 w-12 h-13 object-contain sm:w-[100px] sm:h-[100px]"
+            alt=""
+            width={40}
+            height={40}
+            className="h-9 w-9 shrink-0 rounded-lg object-contain"
           />
-          <span className="hidden text-sm font-semibold tracking-tight text-[#f5f5f5] sm:block">PeerVote</span>
-        </div>
+          <span className="hidden text-sm font-medium tracking-tight text-[var(--text-primary)] sm:block">
+            PeerVote
+          </span>
+        </Link>
 
-        <nav className="flex flex-1 items-center justify-center min-w-0 overflow-x-auto no-scrollbar">
-          <div className="flex items-center gap-1 rounded-xl border border-[#2e2e2e] bg-[#1a1a1a] p-1">
+        <nav
+          aria-label="Main"
+          className="no-scrollbar flex min-w-0 flex-1 items-center justify-center overflow-x-auto"
+        >
+          <div className="flex items-center gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-1">
             {tabs.map((tab) => {
               const active = pathname?.startsWith(tab.href);
               return (
                 <Link
                   key={tab.href}
                   href={tab.href}
-                  className={`rounded-lg px-2.5 py-1.5 text-xs font-medium transition sm:px-3.5 sm:text-sm ${
-                    active ? "bg-[#4f46e5] text-white shadow" : "text-[#a1a1aa] hover:text-white"
+                  aria-current={active ? "page" : undefined}
+                  className={`whitespace-nowrap rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors sm:px-3.5 sm:text-sm ${
+                    active
+                      ? "bg-[var(--accent)] text-[var(--on-accent)]"
+                      : "text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
                   }`}
                 >
                   {tab.label}
@@ -55,46 +93,66 @@ export default function TopNav() {
           </div>
         </nav>
 
-        <div className="relative shrink-0">
+        <div className="relative shrink-0" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((v) => !v)}
-            className="flex items-center gap-2 rounded-full border border-[#2e2e2e] bg-[#1a1a1a] py-1 pl-1 pr-2.5 hover:border-[#4f46e5]/60"
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+            aria-label={`Account menu for ${profile?.roll_number ?? "your account"}`}
+            className="flex items-center gap-2 rounded-full border border-[var(--border-subtle)] bg-[var(--bg-elevated)] py-1 pl-1 pr-2.5 transition-colors hover:border-[var(--accent)]"
           >
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#4f46e5]/20 text-xs font-semibold text-[#a5b4fc]">
-              {profile?.roll_number?.replace("2024mc", "#") ?? "?"}
+            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--accent-soft)] text-xs font-medium text-[var(--accent-text)]">
+              {shortRoll}
             </span>
-            <span className="hidden text-xs font-medium text-[#d4d4d8] sm:block">
+            <span className="hidden text-xs font-medium text-[var(--text-secondary)] sm:block">
               {profile?.roll_number ?? "Loading"}
             </span>
           </button>
+
           {menuOpen && (
-            <div className="fade-in absolute right-0 top-11 w-44 rounded-xl border border-[#2e2e2e] bg-[#1e1e1e] p-1.5 shadow-xl">
-              <div className="px-2 py-1.5 text-xs text-[#71717a]">{profile?.email}</div>
+            <div
+              role="menu"
+              className="fade-in absolute right-0 top-11 w-52 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-1.5 shadow-xl"
+            >
+              <div className="truncate px-2 py-1.5 text-xs text-[var(--text-muted)]">
+                {profile?.email}
+              </div>
+
               {profile?.is_admin && (
-                <div className="mx-2 mb-1 rounded bg-[#4f46e5]/20 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[#a5b4fc]">
+                <div className="mx-2 mb-1 inline-flex items-center gap-1 rounded bg-[var(--accent-soft)] px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-[var(--accent-text)]">
+                  <ShieldCheck aria-hidden="true" className="h-3 w-3" />
                   Admin
                 </div>
               )}
+
               <button
+                role="menuitem"
                 onClick={() => {
                   setMenuOpen(false);
                   setShowResetModal(true);
                 }}
-                className="w-full rounded-lg px-2 py-1.5 text-left text-sm text-[#d4d4d8] hover:bg-[#2a2a2a]"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-[var(--text-secondary)] transition-colors hover:bg-[var(--bg-elevated-2)] hover:text-[var(--text-primary)]"
               >
-                Change Password
+                <KeyRound aria-hidden="true" className="h-3.5 w-3.5" />
+                Change password
               </button>
+
               <button
+                role="menuitem"
                 onClick={() => signOut()}
-                className="w-full rounded-lg px-2 py-1.5 text-left text-sm text-[#f87171] hover:bg-[#2a1a1a]"
+                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm text-[var(--danger)] transition-colors hover:bg-[var(--danger-soft)]"
               >
-                Logout
+                <LogOut aria-hidden="true" className="h-3.5 w-3.5" />
+                Log out
               </button>
             </div>
           )}
         </div>
       </div>
-      {showResetModal && <ResetPasswordModal onClose={() => setShowResetModal(false)} />}
+
+      {showResetModal && (
+        <ResetPasswordModal onClose={() => setShowResetModal(false)} />
+      )}
     </header>
   );
 }

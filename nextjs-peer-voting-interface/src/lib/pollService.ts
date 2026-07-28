@@ -273,6 +273,7 @@ export async function fetchLeaderboardData(
     voter_title: row.voter_title,
     creator_title: row.creator_title,
     status_title: row.status_title,
+    creating_streak: row.creating_streak,
   }));
   return { rankings, lastRunAt };
 }
