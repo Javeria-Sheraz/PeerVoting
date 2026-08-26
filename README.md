@@ -4,6 +4,9 @@
 
 This project is a real-time, anonymous polling application designed specifically for university cohorts. Built with a Next.js (App Router) frontend and a Supabase (PostgreSQL) backend, the platform eliminates the need for manual moderation or expensive server-side timers by relying on database-level automation, Row Level Security (RLS), and time-based queries.
 
+> **New to this repo (including AI agents)?** Read section 7 for the full file tree and section 8 for a
+> task → file lookup table telling you exactly where to make a given change.
+
 ## 2. Core Features & Automated Lifecycle
 
 The platform operates on a strict, automated 3-stage lifecycle driven entirely by the database:
@@ -70,6 +73,7 @@ To maintain strict security, Remote Procedure Call (RPC) functions are heavily l
 * **`has_active_poll(user_id)`**: Evaluates if a user has hit their 1-poll limit. Execution is revoked from the `PUBLIC` API and granted only to authenticated users for use within RLS policies.
 * **`compile_expired_polls()`**: Calculates the top 3 podium winners and archives the poll. Execution is revoked from the `PUBLIC` API and granted only to the `service_role` (executed natively by pg_cron).
 * **`process_anonymous_vote_increment()`**: Updates the vote tally. Execution is revoked from the `PUBLIC` API entirely, as it operates exclusively as an internal PostgreSQL trigger function.
+* **Pending poll approval RPCs**: New polls are first inserted into `pending_polls` via `createPendingPoll`. Admins review them through `get_pending_polls_for_admin()`, then call `approve_pending_poll(p_pending_id)` (promotes the row into `polls`) or `reject_pending_poll(p_pending_id)`. A creator can check their own submission with `get_my_pending_poll()`.
 
 ## 7. Project Structure
 
@@ -87,52 +91,99 @@ nextjs-peer-voting-interface/
 │   └── logo.png
 └── src/
     ├── app/
-    │   ├── globals.css
-    │   ├── layout.tsx
-    │   ├── page.tsx
+    │   ├── globals.css          # Theme tokens (light/dark), Tailwind base
+    │   ├── layout.tsx           # Root layout, wraps app in AuthProvider
+    │   ├── page.tsx             # Public landing / login+signup page
     │   ├── api/
     │   │   └── health/
-    │   │       └── route.ts
+    │   │       └── route.ts     # Health-check endpoint
     │   └── dashboard/
-    │       ├── layout.tsx
-    │       ├── page.tsx
-    │       ├── active/
-    │       │   └── page.tsx
-    │       ├── admin/
-    │       │   └── page.tsx
-    │       ├── archive/
-    │       │   └── page.tsx
-    │       └── closed/
-    │           └── page.tsx
+    │       ├── layout.tsx       # Auth guard + TopNav shell for all dashboard routes
+    │       ├── page.tsx         # Redirects to /dashboard/active
+    │       ├── active/page.tsx      # Active polls tab (vote, create, pending review)
+    │       ├── admin/page.tsx       # Admin console (whitelist, permissions, security)
+    │       ├── archive/page.tsx     # Hall of Fame (past podium winners)
+    │       ├── closed/page.tsx      # Closed polls tab (results visible for 24h)
+    │       ├── leaderboard/page.tsx # Cohort rankings / titles
+    │       └── about/page.tsx       # Static "about this app" page
     ├── components/
-    │   ├── ActivePollCard.tsx
-    │   ├── AdminPermissionsTable.tsx
-    │   ├── AdminWhitelistTable.tsx
-    │   ├── ClosedPollCard.tsx
-    │   ├── ConfirmModal.tsx
-    │   ├── CountdownTimer.tsx
-    │   ├── CreatePollModal.tsx
-    │   ├── EditExpirationModal.tsx
-    │   ├── ExcludedModal.tsx
-    │   ├── Modal.tsx
-    │   ├── Podium.tsx
-    │   ├── RollNumberPicker.tsx
-    │   └── TopNav.tsx
+    │   ├── ActivePollCard.tsx       # Single active poll: vote UI + countdown
+    │   ├── AdminPermissionsTable.tsx # Admin: grant poll-creation / admin rights
+    │   ├── AdminWhitelistTable.tsx   # Admin: manage whitelist (add/exclude roll numbers)
+    │   ├── ClosedPollCard.tsx        # Single closed poll: revealed results
+    │   ├── ConfirmModal.tsx          # Generic yes/no confirmation dialog
+    │   ├── CountdownTimer.tsx        # Shared countdown display, used by poll cards
+    │   ├── CreatePollModal.tsx       # Form to submit a new poll (goes to pending review)
+    │   ├── EditExpirationModal.tsx   # Admin: change a poll's expiry date/time
+    │   ├── ExcludedModal.tsx         # Blocking modal shown to excluded/whitelist-banned users
+    │   ├── Modal.tsx                 # Base modal/dialog primitive used by other modals
+    │   ├── PendingPollCard.tsx       # A user's own poll awaiting admin approval
+    │   ├── PendingPollsReview.tsx    # Admin: approve/reject pending polls queue
+    │   ├── Podium.tsx                # 1st/2nd/3rd place display (archive + results)
+    │   ├── ResetPasswordModal.tsx    # Password reset flow
+    │   ├── ResultsBreakdown.tsx      # Full vote tally breakdown for a poll
+    │   ├── RollNumberPicker.tsx      # Searchable roll-number selector used when voting
+    │   ├── SecurityPanel.tsx         # Admin: security/audit info panel
+    │   └── TopNav.tsx                # Dashboard navigation bar (tabs, theme toggle, logout)
     ├── context/
-    │   └── AuthContext.tsx
+    │   └── AuthContext.tsx      # Session, profile, isExcluded, isConfigured — app-wide auth state
     ├── db/
-    │   ├── index.ts
-    │   └── schema.ts
+    │   ├── index.ts             # Drizzle/pg connection helper (server-side only)
+    │   └── schema.ts            # Drizzle schema entrypoint (currently unused stub)
     └── lib/
-        ├── constants.ts
-        ├── pollService.ts
-        ├── types.ts
+        ├── constants.ts         # Class roster, roll-number regex/email validation, countdown formatting
+        ├── pollService.ts       # All Supabase queries/RPCs: polls, votes, whitelist, admin, leaderboard, pending polls
+        ├── titles.ts            # Maps leaderboard stats to earned "titles"
+        ├── types.ts             # TypeScript types mirroring the Supabase schema
         └── supabase/
-            └── client.ts
+            └── client.ts        # Browser Supabase client factory
 
 ```
 
-## 8. Getting Started & Deployment
+> **Note:** `db/schema.ts` and `SUPABASE_SETUP.md` currently disagree on ID types (`bigint` vs `uuid`) —
+> `SUPABASE_SETUP.md` reflects what the frontend (`src/lib/types.ts`, `pollService.ts`) actually expects
+> (`uuid` primary keys), so treat it as the source of truth over section 3 of this document if they conflict.
+
+## 8. Where to Make Changes (Quick Map for AI Agents & Contributors)
+
+Use this table to jump straight to the right file instead of searching the codebase. All paths are
+relative to `nextjs-peer-voting-interface/`.
+
+| I want to change... | Edit this file |
+| --- | --- |
+| The active-poll voting UI, vote button, per-poll countdown display | `src/components/ActivePollCard.tsx` (uses `src/components/CountdownTimer.tsx`, `src/components/RollNumberPicker.tsx`) |
+| The closed-poll results view (revealed tallies) | `src/components/ClosedPollCard.tsx`, `src/components/ResultsBreakdown.tsx` |
+| The "create a poll" form/modal | `src/components/CreatePollModal.tsx` → calls `createPendingPoll()` in `src/lib/pollService.ts` |
+| What happens to a poll before it goes live (pending/review queue) | `src/components/PendingPollCard.tsx` (creator's own view), `src/components/PendingPollsReview.tsx` (admin approve/reject queue) |
+| Archive / Hall of Fame podium display | `src/app/dashboard/archive/page.tsx`, `src/components/Podium.tsx` |
+| Leaderboard rankings, titles, streaks | `src/app/dashboard/leaderboard/page.tsx`, `src/lib/titles.ts`, `fetchLeaderboardData()` in `src/lib/pollService.ts`, `StudentRanking` type in `src/lib/types.ts` |
+| Admin: whitelist management (add/exclude roll numbers) | `src/components/AdminWhitelistTable.tsx` |
+| Admin: granting poll-creation / admin permissions | `src/components/AdminPermissionsTable.tsx` |
+| Admin: security/audit panel | `src/components/SecurityPanel.tsx` |
+| Admin: editing a poll's expiration | `src/components/EditExpirationModal.tsx` |
+| Admin dashboard page composition (which panels show up) | `src/app/dashboard/admin/page.tsx` |
+| Any Supabase query, insert, update, or RPC call | `src/lib/pollService.ts` — this is the single data-access layer; UI components should not call Supabase directly |
+| Database schema, RLS policies, triggers, cron jobs (SQL) | `nextjs-peer-voting-interface/SUPABASE_SETUP.md` (the actual source of truth — see note in section 7) |
+| TypeScript shapes for DB rows / UI props | `src/lib/types.ts` |
+| Login/signup, roll-number → email validation, class roster size | `src/lib/constants.ts` (`ROLL_EMAIL_REGEX`, `CLASS_ROSTER`) and `src/app/page.tsx` |
+| Session/auth state, "who is logged in", excluded-user gating | `src/context/AuthContext.tsx` |
+| Navigation bar, tabs, theme toggle, logout | `src/components/TopNav.tsx` |
+| Dashboard route guard / loading state / excluded-user modal | `src/app/dashboard/layout.tsx`, `src/components/ExcludedModal.tsx` |
+| Global colors, spacing, dark/light theme tokens | `src/app/globals.css` |
+| Password reset flow | `src/components/ResetPasswordModal.tsx` |
+| Generic confirmation dialogs / base modal styling | `src/components/ConfirmModal.tsx`, `src/components/Modal.tsx` |
+| The "About" static page | `src/app/dashboard/about/page.tsx` |
+| Health-check endpoint (used by uptime monitors) | `src/app/api/health/route.ts` |
+| Supabase client creation / env var handling | `src/lib/supabase/client.ts` |
+| Netlify build config, base directory, Node version | Netlify dashboard (*Site configuration > Build & deploy*) — see section 9 below, not a repo file |
+
+**Rule of thumb:** UI components under `src/components/` and pages under `src/app/dashboard/` should stay
+presentation-focused and call into `src/lib/pollService.ts` for any read/write against Supabase. If a
+change requires a new query or RPC, add it to `pollService.ts` first, then consume it from the component/page.
+If it requires a schema change, update the SQL in `SUPABASE_SETUP.md` and mirror the new shape in
+`src/lib/types.ts`.
+
+## 9. Getting Started & Deployment
 
 ### Environment Variables
 
