@@ -1,8 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Modal from "@/components/Modal";
 import { useAuth } from "@/context/AuthContext";
+import Turnstile, { type TurnstileHandle } from "@/components/Turnstile";
+
+const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export default function ResetPasswordModal({ onClose }: { onClose: () => void }) {
   const { profile, changePassword } = useAuth();
@@ -13,6 +16,8 @@ export default function ResetPasswordModal({ onClose }: { onClose: () => void })
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileHandle>(null);
 
 async function handleSubmit() {
     setError(null);
@@ -43,9 +48,19 @@ async function handleSubmit() {
       return;
     }
 
+    if (turnstileSiteKey && !captchaToken) {
+      setError("Please complete the verification challenge.");
+      return;
+    }
+
     setBusy(true);
     try {
-      const { error: changeError } = await changePassword(email, currentPassword, newPassword);
+      const { error: changeError } = await changePassword(
+        email,
+        currentPassword,
+        newPassword,
+        captchaToken ?? undefined
+      );
 
       if (changeError) {
         // --- NEW: Intercept raw Supabase errors ---
@@ -63,6 +78,7 @@ async function handleSubmit() {
       setConfirmNewPassword("");
       setSuccess("Password updated successfully.");
     } finally {
+      turnstileRef.current?.reset();
       setBusy(false);
     }
   }
@@ -111,6 +127,10 @@ async function handleSubmit() {
           />
         </div>
 
+        {turnstileSiteKey && (
+          <Turnstile ref={turnstileRef} siteKey={turnstileSiteKey} onToken={setCaptchaToken} />
+        )}
+
         {error && (
           <div className="rounded-lg border border-[#3f1d1d] bg-[#241414] px-3 py-2 text-xs text-[#f87171]">{error}</div>
         )}
@@ -130,7 +150,7 @@ async function handleSubmit() {
           </button>
           <button
             onClick={handleSubmit}
-            disabled={busy}
+            disabled={busy || Boolean(turnstileSiteKey && !captchaToken)}
             className="rounded-lg bg-[#4f46e5] px-4 py-2 text-sm font-semibold text-white hover:bg-[#4338ca] disabled:opacity-50"
           >
             {busy ? "Updating..." : "Update Password"}

@@ -18,10 +18,21 @@ Set these in `.env` (and in your Netlify site's Environment Variables panel for 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://<project-ref>.supabase.co
 NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-public-key>
+NEXT_PUBLIC_TURNSTILE_SITE_KEY=<cloudflare-turnstile-site-key>
 ```
 
-The app renders a "not configured" banner and disables the auth form until both are present —
-it will never crash the build if they're missing.
+The app renders a "not configured" banner and disables the auth form until the Supabase vars
+are present — it will never crash the build if they're missing.
+
+`NEXT_PUBLIC_TURNSTILE_SITE_KEY` is optional but required if Captcha protection is enabled on
+the Supabase project (Authentication → Attack Protection → Turnstile). It's the **public** site
+key from the Cloudflare Turnstile dashboard, safe to expose client-side. The matching **secret**
+key goes only into the Supabase dashboard, never into this repo or any client code. When this
+env var is unset, the app skips rendering the widget entirely (useful for local dev against a
+project that doesn't have Captcha protection on) — but if the Supabase project *does* have it
+on, auth calls without a token will fail, so keep this set everywhere Captcha protection is
+enabled. It covers sign up, log in, and the password-change flow (`ResetPasswordModal`, which
+does its own background re-authentication call).
 
 ## 2. Unique constraints that guarantee anonymity + no double-voting
 - `vote_trackers` should have a **unique constraint on `(poll_id, user_id)`** — this is what the
