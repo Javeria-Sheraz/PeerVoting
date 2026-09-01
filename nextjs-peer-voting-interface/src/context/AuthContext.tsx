@@ -131,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const supabase = getSupabaseClient();
     if (!supabase) return { error: "Supabase is not configured." };
     if (!isValidStudentEmail(email)) {
-      return { error: "Email must be a valid class roll number address (2024mc1-40@student.uet.edu.pk)." };
+      return { error: "Email must match 2024mc[1-40]@student.uet.edu.pk exactly." };
     }
     const { error } = await supabase.auth.signInWithPassword({
       email,
