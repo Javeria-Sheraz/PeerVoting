@@ -26,13 +26,18 @@ interface AuthState {
   loading: boolean;
   isExcluded: boolean;
   isConfigured: boolean;
-  signIn: (email: string, password: string) => Promise<{ error: string | null }>;
-  signUp: (email: string, password: string) => Promise<{ error: string | null; needsConfirmation?: boolean }>;
+  signIn: (email: string, password: string, captchaToken?: string) => Promise<{ error: string | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    captchaToken?: string
+  ) => Promise<{ error: string | null; needsConfirmation?: boolean }>;
   signOut: () => Promise<void>;
   changePassword: (
     email: string,
     currentPassword: string,
-    newPassword: string
+    newPassword: string,
+    captchaToken?: string
   ) => Promise<{ error: string | null }>;
   refreshProfile: () => Promise<void>;
 }
@@ -122,24 +127,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [loadProfileAndWhitelist]);
 
-  const signIn = useCallback(async (email: string, password: string) => {
+  const signIn = useCallback(async (email: string, password: string, captchaToken?: string) => {
     const supabase = getSupabaseClient();
     if (!supabase) return { error: "Supabase is not configured." };
     if (!isValidStudentEmail(email)) {
       return { error: "Email must be a valid class roll number address (2024mc1-40@student.uet.edu.pk)." };
     }
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: captchaToken ? { captchaToken } : undefined,
+    });
     return { error: error?.message ?? null };
   }, []);
 
-  const signUp = useCallback(async (email: string, password: string) => {
+  const signUp = useCallback(async (email: string, password: string, captchaToken?: string) => {
     const supabase = getSupabaseClient();
     if (!supabase) return { error: "Supabase is not configured." };
     if (!isValidStudentEmail(email)) {
       return { error: "Email must match 2024mc[1-40]@student.uet.edu.pk exactly." };
     }
     const rollNumber = extractRollNumber(email);
-    const { data, error } = await supabase.auth.signUp({ email, password });
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: captchaToken ? { captchaToken } : undefined,
+    });
     if (error) return { error: error.message };
 
     if (data.user) {
@@ -169,7 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const changePassword = useCallback(
-    async (email: string, currentPassword: string, newPassword: string) => {
+    async (email: string, currentPassword: string, newPassword: string, captchaToken?: string) => {
       const supabase = getSupabaseClient();
       if (!supabase) return { error: "Supabase is not configured." };
       if (!session?.user) return { error: "You need to be logged in to change your password." };
@@ -203,6 +216,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const { error: reauthError } = await verifier.auth.signInWithPassword({
         email: normalizedEmail,
         password: currentPassword,
+        options: captchaToken ? { captchaToken } : undefined,
       });
 
       if (reauthError) {

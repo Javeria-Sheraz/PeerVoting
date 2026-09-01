@@ -1,11 +1,14 @@
 "use client";
 
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
 import { isValidStudentEmail } from "@/lib/constants";
 import ExcludedModal from "@/components/ExcludedModal";
+import Turnstile, { type TurnstileHandle } from "@/components/Turnstile";
+
+const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export default function AuthPage() {
   const router = useRouter();
@@ -17,6 +20,8 @@ export default function AuthPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileHandle>(null);
 
   useEffect(() => {
     if (!loading && session && profile && !isExcluded) {
@@ -46,13 +51,17 @@ export default function AuthPage() {
       setFormError("Password must be at least 6 characters.");
       return;
     }
+    if (turnstileSiteKey && !captchaToken) {
+      setFormError("Please complete the verification challenge.");
+      return;
+    }
 
     setSubmitting(true);
     if (mode === "login") {
-      const { error } = await signIn(email, password);
+      const { error } = await signIn(email, password, captchaToken ?? undefined);
       if (error) setFormError(error);
     } else {
-      const { error, needsConfirmation } = await signUp(email, password);
+      const { error, needsConfirmation } = await signUp(email, password, captchaToken ?? undefined);
       if (error) {
         setFormError(error);
       } else if (needsConfirmation) {
@@ -60,6 +69,7 @@ export default function AuthPage() {
         setMode("login");
       }
     }
+    turnstileRef.current?.reset();
     setSubmitting(false);
   }
 
@@ -151,6 +161,10 @@ export default function AuthPage() {
               />
             </div>
 
+            {turnstileSiteKey && (
+              <Turnstile ref={turnstileRef} siteKey={turnstileSiteKey} onToken={setCaptchaToken} />
+            )}
+
             {formError && (
               <div className="rounded-lg border border-[#3f1d1d] bg-[#241414] px-3 py-2 text-xs text-[#f87171]">
                 {formError}
@@ -164,7 +178,9 @@ export default function AuthPage() {
 
             <button
               type="submit"
-              disabled={submitting || !isConfigured || Boolean(emailError)}
+              disabled={
+                submitting || !isConfigured || Boolean(emailError) || Boolean(turnstileSiteKey && !captchaToken)
+              }
               className="w-full rounded-lg bg-[#4f46e5] py-2.5 text-sm font-semibold text-white transition hover:bg-[#4338ca] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {submitting ? "Please wait..." : mode === "login" ? "Log In" : "Create Account"}
