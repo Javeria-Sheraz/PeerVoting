@@ -2,6 +2,18 @@
 
 export const ROLL_EMAIL_REGEX = /^2024mc([1-9]|[1-3][0-9]|40)@student\.uet\.edu\.pk$/;
 
+/**
+ * How long a login survives while the user is AWAY from the tab. A visible tab
+ * never expires on its own; when the tab is hidden we bank the time, and if the
+ * user comes back after longer than this they are signed out and must log in
+ * again (with the Turnstile challenge). Supabase's own inactivity/time-box
+ * session controls are a Pro-plan feature, so this is enforced client-side.
+ */
+export const AWAY_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+
+/** sessionStorage key holding the epoch-ms timestamp of when the tab went hidden. */
+export const AWAY_AT_STORAGE_KEY = "peerVoteAwayAt";
+
 /** Full class roster, e.g. ["2024mc1", "2024mc2", ..., "2024mc40"] */
 export const CLASS_ROSTER: string[] = Array.from({ length: 40 }, (_, i) => `2024mc${i + 1}`);
 

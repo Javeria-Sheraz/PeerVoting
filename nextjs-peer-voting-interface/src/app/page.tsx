@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
@@ -12,7 +12,7 @@ const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export default function AuthPage() {
   const router = useRouter();
-  const { session, profile, loading, isExcluded, isConfigured, signIn, signUp } = useAuth();
+  const { session, profile, loading, isExcluded, isConfigured, signIn, signUp, signOut } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -23,11 +23,9 @@ export default function AuthPage() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const turnstileRef = useRef<TurnstileHandle>(null);
 
-  useEffect(() => {
-    if (!loading && session && profile && !isExcluded) {
-      router.replace("/dashboard/active");
-    }
-  }, [loading, session, profile, isExcluded, router]);
+  // A still-valid session (e.g. same tab, just reloaded) never auto-redirects —
+  // the user always lands here and must click through to the dashboard.
+  const signedIn = !loading && Boolean(session && profile) && !isExcluded;
 
   function handleEmailChange(value: string) {
     setEmail(value);
@@ -57,9 +55,12 @@ export default function AuthPage() {
     }
 
     setSubmitting(true);
+    // An explicit sign-in/sign-up here goes straight to the dashboard; only a
+    // pre-existing session on page load has to click "Continue".
     if (mode === "login") {
       const { error } = await signIn(email, password, captchaToken ?? undefined);
       if (error) setFormError(error);
+      else router.replace("/dashboard/active");
     } else {
       const { error, needsConfirmation } = await signUp(email, password, captchaToken ?? undefined);
       if (error) {
@@ -67,6 +68,8 @@ export default function AuthPage() {
       } else if (needsConfirmation) {
         setInfo("Account created. Please check your email to confirm before logging in.");
         setMode("login");
+      } else {
+        router.replace("/dashboard/active");
       }
     }
     turnstileRef.current?.reset();
@@ -104,6 +107,36 @@ export default function AuthPage() {
           </div>
         )}
 
+        {loading ? (
+          <div className="card-surface rounded-2xl p-6 shadow-xl">
+            <div className="flex flex-col items-center gap-3 py-6 text-[#a1a1aa]">
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#4f46e5] border-t-transparent" />
+              <p className="text-sm">Checking your session...</p>
+            </div>
+          </div>
+        ) : signedIn ? (
+          <div className="card-surface rounded-2xl p-6 shadow-xl">
+            <p className="text-sm text-[#f5f5f5]">
+              Signed in as{" "}
+              <span className="font-medium">{session?.user.email}</span>
+            </p>
+            <p className="mt-1 text-xs text-[#a1a1aa]">
+              Your session is still valid. Continue, or log out to switch accounts.
+            </p>
+            <button
+              onClick={() => router.push("/dashboard/active")}
+              className="mt-4 w-full rounded-lg bg-[#4f46e5] py-2.5 text-sm font-semibold text-white transition hover:bg-[#4338ca]"
+            >
+              Continue to dashboard
+            </button>
+            <button
+              onClick={() => signOut()}
+              className="mt-2 w-full rounded-lg border border-[#2e2e2e] bg-transparent py-2.5 text-sm font-medium text-[#a1a1aa] transition hover:text-[#f5f5f5]"
+            >
+              Log out
+            </button>
+          </div>
+        ) : (
         <div className="card-surface rounded-2xl p-6 shadow-xl">
           <div className="mb-6 flex rounded-lg border border-[#2e2e2e] bg-[#161616] p-1">
             <button
@@ -132,12 +165,13 @@ export default function AuthPage() {
             </button>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" autoComplete="off">
             <div>
               <label className="mb-1.5 block text-xs font-medium text-[#a1a1aa]">Class Email</label>
               <input
                 type="email"
                 required
+                autoComplete="off"
                 value={email}
                 onChange={(e) => handleEmailChange(e.target.value)}
                 placeholder="2024mcX@student.uet.edu.pk"
@@ -154,6 +188,7 @@ export default function AuthPage() {
                 type="password"
                 required
                 minLength={6}
+                autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -187,6 +222,7 @@ export default function AuthPage() {
             </button>
           </form>
         </div>
+        )}
 
         <p className="mt-5 text-center text-xs text-[#52525b]">
           Only registered roll numbers 2024mc1 through 2024mc40 may access this application.

@@ -11,6 +11,45 @@ declare global {
   var __peerVoteSupabaseClient: SupabaseClient | undefined;
 }
 
+const memoryStore = new Map<string, string>();
+
+/**
+ * Tab-scoped storage for auth tokens: the session lives only as long as the
+ * browser tab/window is open. Closing it — or opening the site in a fresh
+ * window or a new tab — leaves no session, so the user has to log in again.
+ * Falls back to an in-memory map during SSR where `window` is absent.
+ *
+ * This is also where the "last real sign-in" timestamp lives (see AuthContext),
+ * so both die together.
+ */
+export const browserAuthStorage = {
+  getItem(key: string): string | null {
+    try {
+      return typeof window !== "undefined"
+        ? window.sessionStorage.getItem(key)
+        : memoryStore.get(key) ?? null;
+    } catch {
+      return memoryStore.get(key) ?? null;
+    }
+  },
+  setItem(key: string, value: string): void {
+    try {
+      if (typeof window !== "undefined") window.sessionStorage.setItem(key, value);
+      else memoryStore.set(key, value);
+    } catch {
+      memoryStore.set(key, value);
+    }
+  },
+  removeItem(key: string): void {
+    try {
+      if (typeof window !== "undefined") window.sessionStorage.removeItem(key);
+      else memoryStore.delete(key);
+    } catch {
+      memoryStore.delete(key);
+    }
+  },
+};
+
 /**
  * Lazily-created singleton browser Supabase client.
  * Returns `null` when the environment has not been configured yet so the UI
@@ -24,6 +63,7 @@ export function getSupabaseClient(): SupabaseClient | null {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
+        storage: browserAuthStorage,
       },
     });
   }

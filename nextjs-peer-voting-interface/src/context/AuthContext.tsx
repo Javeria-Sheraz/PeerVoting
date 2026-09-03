@@ -12,13 +12,41 @@ import {
 import type { Session } from "@supabase/supabase-js";
 import { createClient } from "@supabase/supabase-js";
 import {
+  browserAuthStorage,
   getSupabaseClient,
   isSupabaseConfigured,
   supabaseAnonKey,
   supabaseUrl,
 } from "@/lib/supabase/client";
-import { extractRollNumber, isValidStudentEmail } from "@/lib/constants";
+import {
+  extractRollNumber,
+  isValidStudentEmail,
+  AWAY_AT_STORAGE_KEY,
+  AWAY_TIMEOUT_MS,
+} from "@/lib/constants";
 import type { Profile } from "@/lib/types";
+
+/** Bank the moment the tab became hidden, so the absence can be measured on return. */
+function markAway() {
+  browserAuthStorage.setItem(AWAY_AT_STORAGE_KEY, String(Date.now()));
+}
+
+function clearAwayMark() {
+  browserAuthStorage.removeItem(AWAY_AT_STORAGE_KEY);
+}
+
+/**
+ * True when the tab has been hidden (user away) for longer than AWAY_TIMEOUT_MS.
+ * No mark means the user is present or was only briefly away — not expired. Lives
+ * in the same tab-scoped storage as the Supabase session, so both die together.
+ */
+function isAwayExpired(): boolean {
+  const raw = browserAuthStorage.getItem(AWAY_AT_STORAGE_KEY);
+  if (!raw) return false;
+  const awayAt = Number(raw);
+  if (!Number.isFinite(awayAt)) return false;
+  return Date.now() - awayAt > AWAY_TIMEOUT_MS;
+}
 
 interface AuthState {
   session: Session | null;
@@ -99,9 +127,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabase) return;
 
     let isMounted = true;
+    let hasSession = false;
+
+    // A visible tab never expires. When it goes hidden we bank the time; when it
+    // comes back, a too-long absence drops the session. Only acts with a session,
+    // so the logged-out login page never fires a redundant signOut.
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        if (hasSession) markAway();
+        return;
+      }
+      if (hasSession && isAwayExpired()) {
+        clearAwayMark();
+        void supabase.auth.signOut();
+      } else {
+        clearAwayMark();
+      }
+    };
 
     supabase.auth.getSession().then(async ({ data }) => {
       if (!isMounted) return;
+      // A session left idle past the away window is signed out before we trust it.
+      if (data.session && isAwayExpired()) {
+        clearAwayMark();
+        await supabase.auth.signOut();
+        setSession(null);
+        setLoading(false);
+        return;
+      }
+      clearAwayMark();
+      hasSession = Boolean(data.session);
       setSession(data.session);
       if (data.session?.user) {
         await loadProfileAndWhitelist(data.session.user.id, data.session.user.email ?? "");
@@ -109,7 +164,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
+    document.addEventListener("visibilitychange", onVisibilityChange);
+
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      hasSession = Boolean(newSession);
       setSession(newSession);
       if (newSession?.user) {
         setLoading(true);
@@ -124,6 +182,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => {
       isMounted = false;
       listener.subscription.unsubscribe();
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, [loadProfileAndWhitelist]);
 
@@ -138,6 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password,
       options: captchaToken ? { captchaToken } : undefined,
     });
+    if (!error) clearAwayMark();
     return { error: error?.message ?? null };
   }, []);
 
@@ -168,6 +228,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       );
     }
 
+    // signUp returns a session immediately only when email confirmation is off.
+    if (data.session) clearAwayMark();
+
     const needsConfirmation = !data.session;
     return { error: null, needsConfirmation };
   }, []);
@@ -175,6 +238,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(async () => {
     const supabase = getSupabaseClient();
     if (!supabase) return;
+    clearAwayMark();
     await supabase.auth.signOut();
     setSession(null);
     setProfile(null);
@@ -228,6 +292,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return { error: updateError.message };
       }
 
+      clearAwayMark();
       await supabase.auth.signOut({ scope: "global" });
       return { error: null };
     },
