@@ -1,7 +1,7 @@
+
 "use client";
 
-import { useMemo, useState } from "react";
-import { Search, Ban } from "lucide-react";
+import { Ban } from "lucide-react";
 import { CLASS_ROSTER } from "@/lib/constants";
 
 interface RollNumberPickerProps {
@@ -12,13 +12,6 @@ interface RollNumberPickerProps {
   disabled?: boolean;
 }
 
-/**
- * Scrollable grid of roll-number chips.
- *
- * NOTE: this file previously contained two `return` statements, so
- * roughly half of it — including the abstain button — was unreachable
- * dead code. This version has a single return.
- */
 export default function RollNumberPicker({
   value,
   onChange,
@@ -26,38 +19,12 @@ export default function RollNumberPicker({
   protectedRolls,
   disabled,
 }: RollNumberPickerProps) {
-  const [search, setSearch] = useState("");
-
-  const roster = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return CLASS_ROSTER.filter((roll) => roll !== excludeRoll)
-      .filter((roll) => !protectedRolls?.has(roll))
-      .filter(
-        (roll) =>
-          !q ||
-          roll.toLowerCase().includes(q) ||
-          roll.replace("2024mc", "#").includes(q),
-      );
-  }, [search, excludeRoll, protectedRolls]);
+  const roster = CLASS_ROSTER.filter(
+    (roll) => roll !== excludeRoll && !protectedRolls?.has(roll),
+  );
 
   return (
     <div className="w-full">
-      <div className="relative mb-3">
-        <Search
-          aria-hidden="true"
-          className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--text-muted)]"
-        />
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search roll number..."
-          aria-label="Search roll numbers"
-          disabled={disabled}
-          className="field w-full py-2 pl-9 pr-3 text-sm disabled:opacity-50"
-        />
-      </div>
-
       <button
         type="button"
         disabled={disabled}
@@ -106,7 +73,7 @@ export default function RollNumberPicker({
 
         {roster.length === 0 && (
           <p className="col-span-full py-4 text-center text-xs text-[var(--text-muted)]">
-            No roll numbers match that search.
+            No roll numbers available.
           </p>
         )}
       </div>
