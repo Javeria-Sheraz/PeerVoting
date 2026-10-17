@@ -70,9 +70,9 @@ export default function TopNav() {
 
         <nav
           aria-label="Main"
-          className="no-scrollbar flex min-w-0 flex-1 items-center justify-center overflow-x-auto"
+          className="no-scrollbar flex min-w-0 flex-1 items-center justify-start overflow-x-auto lg:justify-center"
         >
-          <div className="flex items-center gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-1">
+          <div className="flex shrink-0 items-center gap-1 rounded-xl border border-[var(--border-subtle)] bg-[var(--bg-elevated)] p-1">
             {tabs.map((tab) => {
               const active = pathname?.startsWith(tab.href);
               return (
