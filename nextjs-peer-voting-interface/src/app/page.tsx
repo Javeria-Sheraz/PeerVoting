@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { useAuth } from "@/context/AuthContext";
@@ -12,7 +12,7 @@ const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
 
 export default function AuthPage() {
   const router = useRouter();
-  const { session, profile, loading, isExcluded, isConfigured, signIn, signUp, signOut } = useAuth();
+  const { session, profile, loading, isExcluded, isConfigured, signIn, signUp } = useAuth();
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -25,7 +25,13 @@ export default function AuthPage() {
 
   // A still-valid session (e.g. same tab, just reloaded) never auto-redirects —
   // the user always lands here and must click through to the dashboard.
-  const signedIn = !loading && Boolean(session && profile) && !isExcluded;
+    const signedIn = !loading && Boolean(session && profile) && !isExcluded;
+
+    useEffect(() => {
+      if (signedIn) {
+        router.replace("/dashboard/active");
+      }
+    }, [signedIn, router]);
 
   function handleEmailChange(value: string) {
     setEmail(value);
@@ -107,34 +113,12 @@ export default function AuthPage() {
           </div>
         )}
 
-        {loading ? (
+        {loading || signedIn || Boolean(session && !profile) ? (
           <div className="card-surface rounded-2xl p-6 shadow-xl">
             <div className="flex flex-col items-center gap-3 py-6 text-[#a1a1aa]">
               <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#4f46e5] border-t-transparent" />
               <p className="text-sm">Checking your session...</p>
             </div>
-          </div>
-        ) : signedIn ? (
-          <div className="card-surface rounded-2xl p-6 shadow-xl">
-            <p className="text-sm text-[#f5f5f5]">
-              Signed in as{" "}
-              <span className="font-medium">{session?.user.email}</span>
-            </p>
-            <p className="mt-1 text-xs text-[#a1a1aa]">
-              Your session is still valid. Continue, or log out to switch accounts.
-            </p>
-            <button
-              onClick={() => router.push("/dashboard/active")}
-              className="mt-4 w-full rounded-lg bg-[#4f46e5] py-2.5 text-sm font-semibold text-white transition hover:bg-[#4338ca]"
-            >
-              Continue to dashboard
-            </button>
-            <button
-              onClick={() => signOut()}
-              className="mt-2 w-full rounded-lg border border-[#2e2e2e] bg-transparent py-2.5 text-sm font-medium text-[#a1a1aa] transition hover:text-[#f5f5f5]"
-            >
-              Log out
-            </button>
           </div>
         ) : (
         <div className="card-surface rounded-2xl p-6 shadow-xl">
